@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+
+# Generated data
+data/synthetic_fs.sqlite
+audit.jsonl
+vault.jsonl
+review_queue.jsonl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uv
+uv.lock
