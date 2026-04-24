@@ -239,16 +239,19 @@ _MOCK_PATTERNS: list[tuple[PIICategory, re.Pattern[str]]] = [
         r"\.?\b",
         re.IGNORECASE,
     )),
-    # Person names — capitalized word sequences (very crude, high false positive rate)
-    # Only match 2-3 consecutive capitalized words not at sentence start
+    # Person names — requires honorific or common first name to avoid false positives
     (PIICategory.PRIVATE_PERSON, re.compile(
-        r"(?:(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+)?(?:[A-Z][a-z]+\s+){1,2}[A-Z][a-z]+"
+        r"\b(?:Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|John|Jane|Alice|Bob|Sarah|Michael|Emma|David|William|James|Mary|Patricia|Jennifer|Linda|Elizabeth|Barbara|Susan|Jessica|Karen|Nancy|Lisa|Betty|Margaret|Sandra|Ashley|Kimberly|Emily|Donna|Michelle|Dorothy|Carol|Amanda|Melissa|Deborah|Stephanie|Rebecca|Sharon|Laura|Cynthia|Kathleen|Amy|Shirley|Angela|Helen|Anna|Brenda|Pamela|Nicole|Samantha|Katherine|Christine|Debra|Rachel|Catherine|Carolyn|Janet|Ruth|Maria|Heather|Diane|Virginia|Julie|Joyce|Victoria|Olivia|Kelly|Christina|Lauren|Joan|Evelyn|Judith|Megan|Cheryl|Andrea|Hannah|Martha|Jacqueline|Frances|Gloria|Ann|Teresa|Kathryn|Sara|Janice|Jean|Madison|Doris|Abigail|Julia|Judy|Grace|Denise|Amber|Marilyn|Beverly|Danielle|Theresa|Sophia|Marie|Diana|Brittany|Natalie|Isabella|Charlotte|Rose|Alexis|Kayla)\s+[A-Z][a-z]+\b"
     )),
 ]
 
 
 def _mock_detect(text: str) -> list[PIIDetection]:
-    """Regex-based mock PII detector. For testing only — not production quality."""
+    """Regex-based mock PII detector. For testing only — not production quality.
+    
+    Note: The overlap resolution algorithm is O(n²) where n is the number of 
+    detections. This is fine for demo purposes but will be slow for large documents.
+    """
     detections: list[PIIDetection] = []
     for category, pattern in _MOCK_PATTERNS:
         for match in pattern.finditer(text):

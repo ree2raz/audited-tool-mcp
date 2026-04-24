@@ -19,8 +19,9 @@ dependencies = [
     "mcp[cli]>=1.0.0",
     # Schema validation
     "pydantic>=2.0.0",
-    # Database
+    # Database and SQL parsing
     "sqlalchemy>=2.0.0",
+    "sqlglot>=23.0.0",
     # Synthetic data
     "faker>=25.0.0",
     # Customer API server

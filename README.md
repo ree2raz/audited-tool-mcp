@@ -48,6 +48,7 @@ We use `openai/privacy-filter`, a 1.5B parameter bidirectional token classifier 
 - It runs **locally on CPU** by default. No data is sent to OpenAI APIs.
 - We implemented robust BIOES span decoding to accurately map token predictions back to character offsets in the original text.
 - For fast local testing, setting `MOCK_PII=1` bypasses the model and uses a regex stub.
+  - *Note: The mock is a fast stub for local iteration and CI. Real Privacy Filter detection is qualitatively different and handles complex semantics. See the benchmarks in `benchmarks/` for latency comparisons.*
 
 ## 5. RBAC and Policy Engine
 
@@ -60,6 +61,11 @@ There are six policy actions:
 - `VAULT`: Store raw text in `vault.jsonl` and replace with a UUID reference.
 - `REVIEW`: Leave intact but flag for human review (writes to `review_queue.jsonl`).
 - `BLOCK`: Halt the request immediately and raise a `PolicyViolation`.
+
+**Policy Philosophies:**
+The repo includes two bundled policies that demonstrate different compliance philosophies:
+- `permissive_analyst`: Prioritizes data usability. Replaces names and emails with a `HASH` so analysts can still correlate records (e.g., `GROUP BY`) belonging to the same entity across tables without knowing the entity's true identity.
+- `strict_financial`: Prioritizes absolute privacy. Replaces names and emails with a generic `REDACT` (e.g., `[private_person]`), preventing even statistical correlation.
 
 ## 6. Audit Trail
 

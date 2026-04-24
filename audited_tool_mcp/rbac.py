@@ -76,59 +76,38 @@ _API_RESTRICTED_FIELDS: dict[Role, set[str]] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# SQL parsing (lightweight — not a full parser)
-# ---------------------------------------------------------------------------
-
-# Simple regex to extract table names from SQL
-_TABLE_PATTERN = re.compile(
-    r"\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+(\w+)",
-    re.IGNORECASE,
-)
-
-# Simple regex to extract column names from SELECT
-_SELECT_COLUMNS_PATTERN = re.compile(
-    r"SELECT\s+(.*?)\s+FROM",
-    re.IGNORECASE | re.DOTALL,
-)
-
+import sqlglot
+from sqlglot import exp
 
 def _extract_tables(sql: str) -> set[str]:
-    """Extract table names from a SQL query (best-effort, not a full parser)."""
-    return {m.group(1).lower() for m in _TABLE_PATTERN.finditer(sql)}
+    """Extract table names from a SQL query using AST parsing."""
+    try:
+        parsed = sqlglot.parse_one(sql)
+    except Exception as e:
+        logger.warning("Failed to parse SQL for RBAC: %s", e)
+        # Fail closed: if we can't parse it, we must assume it accesses restricted tables
+        return {"__UNPARSEABLE__"}
+
+    return {t.name.lower() for t in parsed.find_all(exp.Table) if t.name}
 
 
 def _extract_select_columns(sql: str) -> set[str] | None:
-    """Extract column names from a SELECT statement.
+    """Extract column names from a SELECT statement using AST parsing.
 
-    Returns None if it's SELECT * (meaning all columns).
+    Returns None if it contains SELECT * (meaning all columns).
     Returns a set of column names otherwise.
     """
-    match = _SELECT_COLUMNS_PATTERN.search(sql)
-    if not match:
+    try:
+        parsed = sqlglot.parse_one(sql)
+    except Exception:
+        # Fallback handled by _extract_tables above
         return None
 
-    cols_str = match.group(1).strip()
-    if cols_str == "*":
-        return None  # SELECT * — need to check all columns after execution
+    # Check for SELECT *
+    if any(isinstance(s, exp.Star) for s in parsed.find_all(exp.Star)):
+        return None
 
-    # Split on commas, strip whitespace, handle "table.column" format
-    columns = set()
-    for col in cols_str.split(","):
-        col = col.strip()
-        # Remove table prefix if present (e.g., "customers.ssn" → "ssn")
-        if "." in col:
-            col = col.split(".")[-1]
-        # Remove aliases (e.g., "ssn AS social" → "ssn")
-        if " as " in col.lower():
-            col = col.split()[0]
-        # Remove aggregate functions (e.g., "COUNT(id)" → "id")
-        func_match = re.match(r"\w+\((\w+)\)", col)
-        if func_match:
-            col = func_match.group(1)
-        columns.add(col.lower().strip())
-
-    return columns
+    return {c.name.lower() for c in parsed.find_all(exp.Column) if c.name}
 
 
 def validate_sql_access(role: Role, sql: str) -> None:

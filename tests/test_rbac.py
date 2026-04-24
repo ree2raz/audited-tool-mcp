@@ -180,6 +180,42 @@ class TestRBACSQLAccess:
             sql_query="SELECT ssn, account_number FROM customers"
         )
 
+    def test_analyst_blocked_by_comment_hidden_column(self):
+        actor = Actor(role=Role.ANALYST, user_id="analyst-001")
+        with pytest.raises(RBACDenied) as exc_info:
+            check_access(
+                actor, "sql_query",
+                sql_query="SELECT id, /* ssn */ ssn FROM customers"
+            )
+        assert "ssn" in str(exc_info.value).lower()
+
+    def test_analyst_blocked_by_subquery_bypass(self):
+        actor = Actor(role=Role.ANALYST, user_id="analyst-001")
+        with pytest.raises(RBACDenied) as exc_info:
+            check_access(
+                actor, "sql_query",
+                sql_query="SELECT (SELECT ssn FROM customers LIMIT 1) as x FROM customers"
+            )
+        assert "ssn" in str(exc_info.value).lower()
+
+    def test_analyst_blocked_by_union_bypass(self):
+        actor = Actor(role=Role.ANALYST, user_id="analyst-001")
+        with pytest.raises(RBACDenied) as exc_info:
+            check_access(
+                actor, "sql_query",
+                sql_query="SELECT id FROM customers UNION SELECT ssn FROM customers"
+            )
+        assert "ssn" in str(exc_info.value).lower()
+
+    def test_unparseable_sql_fails_closed(self):
+        actor = Actor(role=Role.ANALYST, user_id="analyst-001")
+        with pytest.raises(RBACDenied) as exc_info:
+            check_access(
+                actor, "sql_query",
+                sql_query="SELECT * FROM ("
+            )
+        assert "__unparseable__" in str(exc_info.value).lower()
+
 
 # ---------------------------------------------------------------------------
 # Test RBAC check — Step 1c: API access

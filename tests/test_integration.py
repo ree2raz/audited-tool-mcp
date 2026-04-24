@@ -49,10 +49,19 @@ def audit_path(tmp_path, monkeypatch):
 
 @pytest.fixture
 def db_path():
-    """Ensure the synthetic database exists."""
+    """Ensure the synthetic database exists, or create a temporary one for testing."""
     path = os.environ.get("DB_PATH", "data/synthetic_fs.sqlite")
     if not os.path.exists(path):
-        pytest.skip(f"Database not found at {path}. Run 'make seed' first.")
+        import sys
+        from scripts.seed_data import main as seed_main
+        
+        # Override DB_PATH for seed script if it was not set
+        os.environ["DB_PATH"] = path
+        
+        print(f"\\nSeeding database at {path} for testing...")
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        seed_main()
     return path
 
 

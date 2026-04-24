@@ -43,36 +43,7 @@ class AgentState(TypedDict):
     tool_results: list[dict]
     final_response: str
     steps: int
-
-
-# ---------------------------------------------------------------------------
-# MCP Client (direct tool call, no transport for simplicity in demo)
-# ---------------------------------------------------------------------------
-
-async def call_mcp_tool(tool_name: str, arguments: dict) -> str:
-    """Call an MCP tool directly (in-process for demo purposes).
-
-    In production, this would use stdio_client to connect to the MCP server
-    as a subprocess. For the demo, we call the pipeline directly to avoid
-    requiring a separate server process.
-    """
-    from audited_tool_mcp.privacy import use_mock_detector
-
-    # Use mock PII detector if MOCK_PII is set
-    if os.environ.get("MOCK_PII", "0") == "1":
-        use_mock_detector(True)
-
-    if tool_name == "sql_query":
-        from audited_tool_mcp.server import sql_query
-        return await sql_query(**arguments)
-    elif tool_name == "customer_lookup":
-        from audited_tool_mcp.server import customer_lookup
-        return await customer_lookup(**arguments)
-    elif tool_name == "customer_search":
-        from audited_tool_mcp.server import customer_search
-        return await customer_search(**arguments)
-    else:
-        return json.dumps({"error": f"Unknown tool: {tool_name}"})
+    mcp_session: Any
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +152,16 @@ async def tool_node(state: AgentState) -> AgentState:
         print(f"\n  📋 Calling tool: {tool_name}")
         print(f"     Arguments: {json.dumps(arguments, indent=2)}")
 
-        result = await call_mcp_tool(tool_name, arguments)
+        session = state["mcp_session"]
+        try:
+            mcp_result = await session.call_tool(tool_name, arguments=arguments)
+            if mcp_result.isError:
+                result = f"Error: {mcp_result.content[0].text}"
+            else:
+                result = mcp_result.content[0].text
+        except Exception as e:
+            result = json.dumps({"error": f"MCP tool execution failed: {e}"})
+
         tool_results.append({
             "tool_name": tool_name,
             "arguments": arguments,
@@ -191,7 +171,7 @@ async def tool_node(state: AgentState) -> AgentState:
         # Add tool result as a message
         messages.append(ToolMessage(content=result, tool_call_id=tool_call["id"]))
 
-        print(f"     Result preview: {result[:200]}...")
+        print(f"     Result preview: {str(result)[:200]}...")
 
     state["messages"] = messages
     state["tool_results"] = state.get("tool_results", []) + tool_results
@@ -276,17 +256,31 @@ async def run_agent(role: str, query: str, user_id: str = "demo-user") -> None:
 
     graph = build_graph()
 
-    initial_state: AgentState = {
-        "role": role,
-        "user_id": user_id,
-        "query": query,
-        "messages": [],
-        "tool_results": [],
-        "final_response": "",
-        "steps": 0,
-    }
+    from mcp.client.session import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
 
-    result = await graph.ainvoke(initial_state)
+    server_params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "audited_tool_mcp.server"],
+        env=os.environ.copy(),
+    )
+
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            initial_state: AgentState = {
+                "role": role,
+                "user_id": user_id,
+                "query": query,
+                "messages": [],
+                "tool_results": [],
+                "final_response": "",
+                "steps": 0,
+                "mcp_session": session,
+            }
+
+            result = await graph.ainvoke(initial_state)
 
     print("\n" + "=" * 70)
     print("  📝 Agent Response:")
