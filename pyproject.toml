@@ -30,6 +30,8 @@ dependencies = [
     "langgraph>=0.2.0",
     "langchain-core>=0.3.0",
     "langchain-openai>=0.2.0",
+    # Environment variables
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
