@@ -4,6 +4,21 @@ A production-grade, compliance-aware Model Context Protocol (MCP) server that wr
 
 This project serves as a reference implementation for agentic systems in highly regulated industries.
 
+## Try it in 60 seconds
+
+Prerequisites: Python 3.11+, `uv`
+
+```bash
+# Set your OpenAI API key for the demo's LangGraph agent
+export OPENAI_API_KEY="sk-..."
+
+git clone https://github.com/ree2raz/audited-tool-mcp.git
+cd audited-tool-mcp
+make install
+make seed
+MOCK_PII=1 make demo
+```
+
 ## 1. What this is
 
 When an LLM (the client) calls a tool (e.g., `sql_query`), that call passes through a strict compliance pipeline before execution, and the result passes through the pipeline again before returning to the LLM.
@@ -16,32 +31,41 @@ When an LLM (the client) calls a tool (e.g., `sql_query`), that call passes thro
 6. **Outbound Policy**: Applies redaction/hashing rules to the results.
 7. **Audit Logging**: Writes a structured JSONL record of the entire trace.
 
-## 2. Quickstart
+## 2. Architecture
 
-Prerequisites: Python 3.11+, `uv`
+Every tool call flows through a 7-step pipeline. Cheapest checks first, most expensive last.
 
-```bash
-git clone https://github.com/yourusername/audited-tool-mcp.git
-cd audited-tool-mcp
-
-# Install dependencies and download the 1.5B Privacy Filter model
-make install
-
-# Generate the synthetic financial services dataset (~500 rows)
-make seed
-
-# Run the end-to-end demo (uses a mock PII detector for speed)
-export OPENAI_API_KEY=sk-...  # For the LangGraph agent
-MOCK_PII=1 make demo
+```
+    User Query
+       │
+       ▼
+[1] RBAC Gate ────── fail-closed set membership check (O(1))
+       │
+       ▼
+[2] Inbound PII Scan ── 1.5B Privacy Filter detects 8 categories
+       │
+       ▼
+[3] Inbound Policy ──── ALLOW | REDACT | HASH | VAULT | REVIEW | BLOCK
+       │
+       ▼
+[4] Tool Execution ──── bounded, with timeouts
+       │
+       ▼
+[5] Outbound PII Scan ── canonical JSON scan (sort_keys=True)
+       │
+       ▼
+[6] Outbound Policy ──── redact/hash/vault results before returning
+       │
+       ▼
+[7] Audit Logging ───── append-only JSONL (SHA-256, no raw PII)
+       │
+       ▼
+    LLM Response
 ```
 
-## 3. Architecture
+The server uses `FastMCP` with `stdio` transport. The core pipeline is in `audited_tool_mcp/server.py:process_request()`.
 
-The server uses `FastMCP` with `stdio` transport. The core pipeline is located in `audited_tool_mcp/server.py:process_request()`.
-
-Every tool call triggers a 7-step pipeline. The cheapest checks happen first (O(1) RBAC set membership), and the most expensive checks happen last (1.5B param PII inference). The audit logger is append-only JSONL, explicitly avoiding raw PII storage by replacing matched text with `[category]` placeholders or hashes.
-
-## 4. The Privacy Filter
+## 3. The Privacy Filter
 
 We use `openai/privacy-filter`, a 1.5B parameter bidirectional token classifier that supports 8 PII categories (e.g., `private_person`, `account_number`, `secret`). 
 
@@ -55,7 +79,7 @@ Because Privacy Filter was trained to aggressively protect personal data, it occ
 
 We leave this behavior intact in the demo to illustrate a core design philosophy: **detection is a primitive, not a pipeline.** If your use case requires suppressing company name false-positives, the correct place to do so is in a post-detection filter (e.g., dropping spans that match known company suffixes), rather than trying to force the model to behave differently.
 
-## 5. RBAC and Policy Engine
+## 4. RBAC and Policy Engine
 
 Policies are defined as strict Pydantic models, not loose YAML files. This ensures type safety and IDE autocomplete.
 
@@ -72,7 +96,9 @@ The repo includes two bundled policies that demonstrate different compliance phi
 - `permissive_analyst`: Prioritizes data usability. Replaces names and emails with a `HASH` so analysts can still correlate records (e.g., `GROUP BY`) belonging to the same entity across tables without knowing the entity's true identity.
 - `strict_financial`: Prioritizes absolute privacy. Replaces names and emails with a generic `REDACT` (e.g., `[private_person]`), preventing even statistical correlation.
 
-## 6. Audit Trail
+> **What's happening here?** `permissive_analyst_v1` keeps redacted text **inline** as `[private_person:sha256-first-8]`. An analyst can still `GROUP BY` that hash to correlate records belonging to the same person — without ever seeing the person's name. `strict_financial_v1` replaces all PII with a generic `[private_person]` tag, making even statistical correlation impossible. Same detection pipeline, opposite compliance philosophies. The policy is a config object, not a code change.
+
+## 5. Audit Trail
 
 The audit log (`audit.jsonl`) is the ultimate source of truth. A single request produces a single JSONL record containing:
 - The actor (role, user_id, session_id)
@@ -81,11 +107,11 @@ The audit log (`audit.jsonl`) is the ultimate source of truth. A single request 
 - The exact policy config version and model version used
 - Latency and terminal status
 
-## 7. The Synthetic Dataset
+## 6. The Synthetic Dataset
 
 The `scripts/seed_data.py` script generates a realistic SQLite database with customers, accounts, transactions, and advisors. Crucially, the transaction descriptions include deliberate edge cases for the PII scanner, such as compound identifiers ("account ending in 4821") and aliases.
 
-## 8. Evaluation Harness
+## 7. Evaluation Harness
 
 Run `make eval` to execute the evaluation harness against a golden set of 15 test cases. It measures:
 - RBAC accuracy (did it correctly allow/deny?)
@@ -93,12 +119,12 @@ Run `make eval` to execute the evaluation harness against a golden set of 15 tes
 - Inbound PII detection (were the expected categories caught?)
 - Audit completeness (are all required fields present?)
 
-## 9. Included Tools
+## 8. Included Tools
 
 - `sql_query`: Read-only SQLite execution with RBAC-enforced column filtering.
 - `customer_api`: A separate FastAPI process simulating a REST backend, demonstrating how the pipeline handles internal service boundaries.
 
-## 10. Extending this
+## 9. Extending this
 
 To take this from a reference implementation to production:
 1. **Async Review Queue**: Currently, the `REVIEW` action is synchronous (the request completes but is flagged). In production, `REVIEW` should hold the request, return a "pending" status to the LLM, and wait for an out-of-band human approval webhook.
