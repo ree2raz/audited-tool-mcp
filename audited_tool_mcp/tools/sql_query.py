@@ -65,16 +65,19 @@ def execute_sql(query: str, role: Role | None = None) -> str:
     # Apply column filtering based on role
     if role is not None:
         tables = _extract_tables(query)
-        # For each table, get allowed columns and filter
-        allowed_cols = set(columns)  # Start with all columns
+        # Build union of allowed columns across all queried tables.
+        # A column is shown if ANY table permits it (per-column, not intersection).
+        all_table_allowed: set[str] = set()
         for table in tables:
-            filtered = filter_columns(role, table, set(columns))
-            if filtered != set(columns):  # If there are restrictions
-                allowed_cols = allowed_cols & filtered
-
-        # Build filtered column indices
-        col_indices = [i for i, c in enumerate(columns) if c in allowed_cols]
-        filtered_columns = [columns[i] for i in col_indices]
+            table_allowed = filter_columns(role, table, set(columns))
+            all_table_allowed |= table_allowed  # union — column visible if any table allows it
+        
+        if all_table_allowed:
+            col_indices = [i for i, c in enumerate(columns) if c in all_table_allowed]
+            filtered_columns = [columns[i] for i in col_indices]
+        else:
+            col_indices = list(range(len(columns)))
+            filtered_columns = columns
     else:
         col_indices = list(range(len(columns)))
         filtered_columns = columns
