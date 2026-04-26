@@ -2,6 +2,8 @@
 
 A production-grade, compliance-aware Model Context Protocol (MCP) server that wraps LLM tool use with four primitives: PII safety, role-based access control (RBAC), configurable policy enforcement, and structured audit logging.
 
+Built on OpenAI's newly released Privacy Filter (1.5B params, April 2026), running locally on CPU — no data leaves your infrastructure.
+
 This project serves as a reference implementation for agentic systems in highly regulated industries.
 
 ## Try it in 60 seconds
@@ -18,6 +20,18 @@ make install
 make seed
 MOCK_PII=1 make demo
 ```
+
+## Why a 1.5B specialty model, not a regex
+
+Most PII detection in production pipelines is regex-based. Regex catches SSNs and email addresses but misses the entire class of contextual PII: a sentence like "the Henderson trust's primary contact" contains no syntactic PII pattern, but a token classifier trained on privacy data identifies "Henderson" as a `private_person` span with high confidence.
+
+OpenAI released Privacy Filter on April 22, 2026. It's a 1.5B-parameter bidirectional token classifier supporting 8 PII categories. We built robust BIOES span decoding to map token predictions back to character offsets in the original text — the unglamorous part most integrations skip. The model runs locally on CPU. No data is sent to OpenAI APIs. This matches the deployment requirement of every regulated buyer: PII detection that works without trusting a third-party vendor with the data being detected.
+
+## What Privacy Filter gets wrong
+
+Because Privacy Filter was trained to aggressively protect personal data, it occasionally over-redacts public entities. For example, if a query returns a transaction counterparty named "Bennett Group", the model may tag it as three separate `private_person` spans.
+
+We leave this behavior intact in the demo to illustrate a core design philosophy: **detection is a primitive, not a pipeline.** If your use case requires suppressing company name false-positives, the correct place to do so is in a post-detection filter (e.g., dropping spans that match known company suffixes), rather than trying to force the model to behave differently.
 
 ## 1. What this is
 
@@ -67,17 +81,14 @@ The server uses `FastMCP` with `stdio` transport. The core pipeline is in `audit
 
 ## 3. The Privacy Filter
 
-We use `openai/privacy-filter`, a 1.5B parameter bidirectional token classifier that supports 8 PII categories (e.g., `private_person`, `account_number`, `secret`). 
+We use `openai/privacy-filter` (model card: April 22, 2026), a 1.5B parameter bidirectional token classifier that supports 8 PII categories (e.g., `private_person`, `account_number`, `secret`). 
 
 - It runs **locally on CPU** by default. No data is sent to OpenAI APIs.
 - We implemented robust BIOES span decoding to accurately map token predictions back to character offsets in the original text.
 - For fast local testing, setting `MOCK_PII=1` bypasses the model and uses a regex stub.
   - *Note: The mock is a fast stub for local iteration and CI. Real Privacy Filter detection is qualitatively different and handles complex semantics. See the benchmarks in `benchmarks/` for latency comparisons.*
 
-### What Privacy Filter gets wrong
-Because Privacy Filter was trained to aggressively protect personal data, it occasionally over-redacts public entities. For example, if a query returns a transaction counterparty named "Bennett Group", the model may tag it as three separate `private_person` spans.
-
-We leave this behavior intact in the demo to illustrate a core design philosophy: **detection is a primitive, not a pipeline.** If your use case requires suppressing company name false-positives, the correct place to do so is in a post-detection filter (e.g., dropping spans that match known company suffixes), rather than trying to force the model to behave differently.
+For known limitations, see [What Privacy Filter gets wrong](#what-privacy-filter-gets-wrong) above.
 
 ## 4. RBAC and Policy Engine
 
