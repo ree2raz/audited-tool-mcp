@@ -195,6 +195,32 @@ def get_policy(name: str) -> PolicyConfig:
 
 
 # ---------------------------------------------------------------------------
+# Numeric false-positive suppression for phone detections
+# ---------------------------------------------------------------------------
+
+import re as _re
+
+_NUMERIC_VALUE_PATTERN = _re.compile(r'^[\d.\-]+$')
+
+
+def _is_numeric_json_value(text: str, start: int, end: int) -> bool:
+    """Check if a detection span is a numeric JSON value.
+
+    Privacy Filter can mistake numeric sequences in financial data
+    (e.g., 496959.67 in JSON) for phone numbers. Suppress redaction
+    when the detected span is purely numeric in JSON number context.
+    """
+    detected = text[start:end]
+    if not _NUMERIC_VALUE_PATTERN.match(detected):
+        return False
+    before = text[max(0, start - 3):start]
+    after = text[end:min(len(text), end + 3)]
+    numeric_before = bool(_re.search(r'[:\[,\s]\s*$', before))
+    numeric_after = bool(_re.search(r'^[\s\]]*[,}\]]', after)) or not after.strip()
+    return numeric_before and numeric_after
+
+
+# ---------------------------------------------------------------------------
 # Policy application
 # ---------------------------------------------------------------------------
 
@@ -262,18 +288,31 @@ def apply_policy(
             ))
 
         elif action == PolicyAction.REDACT:
-            replacement = f"[{det.category.value}]"
-            mutated = mutated[:det.start] + replacement + mutated[det.end:]
-            mutations.append(Mutation(
-                start=det.start,
-                end=det.end,
-                category=det.category,
-                action=action,
-                replacement=replacement,
-            ))
-            decisions.append(PolicyDecision(
-                category=det.category, action=action, reason=reason
-            ))
+            # Suppress numeric false positives for phone detections.
+            # Balance values like 496959.67 get mistaken for phone numbers
+            # by the model. If the span is purely numeric in JSON number
+            # context, treat as ALLOW instead of redacting.
+            if det.category == PIICategory.PRIVATE_PHONE and _is_numeric_json_value(
+                mutated, det.start, det.end
+            ):
+                decisions.append(PolicyDecision(
+                    category=det.category,
+                    action=PolicyAction.ALLOW,
+                    reason="Numeric value in JSON context — suppressed phone false positive",
+                ))
+            else:
+                replacement = f"[{det.category.value}]"
+                mutated = mutated[:det.start] + replacement + mutated[det.end:]
+                mutations.append(Mutation(
+                    start=det.start,
+                    end=det.end,
+                    category=det.category,
+                    action=action,
+                    replacement=replacement,
+                ))
+                decisions.append(PolicyDecision(
+                    category=det.category, action=action, reason=reason
+                ))
 
         elif action == PolicyAction.HASH:
             hash_val = sha256_short(det.text)
