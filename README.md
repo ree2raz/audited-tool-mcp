@@ -1,3 +1,13 @@
+---
+title: AuditGuard MCP
+emoji: 🔒
+colorFrom: blue
+colorTo: gray
+sdk: docker
+pinned: false
+license: mit
+---
+
 # auditguard-mcp
 
 A production-grade, compliance-aware Model Context Protocol (MCP) server that wraps LLM tool use with four primitives: PII safety, role-based access control (RBAC), configurable policy enforcement, and structured audit logging.
