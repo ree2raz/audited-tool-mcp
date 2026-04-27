@@ -16,6 +16,8 @@ Built on OpenAI's newly released Privacy Filter (1.5B params, April 2026), runni
 
 This project serves as a reference implementation for agentic systems in highly regulated industries.
 
+**Live demo:** [HuggingFace Space →](https://huggingface.co/spaces/ree2raz/auditguard-mcp)
+
 ## Try it in 60 seconds
 
 Prerequisites: Python 3.11+, `uv`
