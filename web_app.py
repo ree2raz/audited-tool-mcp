@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
@@ -67,6 +67,12 @@ app = FastAPI(title="auditguard-mcp", docs_url=None, redoc_url=None, lifespan=li
 async def index():
     """Serve the single-page demo frontend."""
     return HTMLResponse((WEB_DIR / "index.html").read_text())
+
+
+@app.get("/favicon.svg")
+async def favicon():
+    """Serve the favicon."""
+    return FileResponse(WEB_DIR / "favicon.svg", media_type="image/svg+xml")
 
 
 # Mount MCP at root — mcp_app internally handles /mcp route.
