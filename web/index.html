@@ -6,7 +6,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <title>auditguard-mcp</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
     --bg-page: #0f1117;
@@ -21,794 +21,704 @@
     --text-muted: #484f58;
     --accent: #58a6ff;
     --accent-dim: rgba(88,166,255,0.12);
-    --accent-strong: rgba(88,166,255,0.25);
     --green: #3fb950;
     --green-dim: rgba(63,185,80,0.12);
+    --amber: #d29922;
+    --amber-dim: rgba(210,153,34,0.12);
     --red: #f85149;
     --red-dim: rgba(248,81,73,0.12);
-    --skipped: #484f58;
-    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html { font-size: 20px; scroll-behavior: smooth; }
-
   body {
     font-family: var(--sans);
     background: var(--bg-page);
     color: var(--text-body);
-    min-height: 100vh;
-    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
+    font-size: 17px;
   }
 
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 32px 72px; }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .wrap > * { }
-
-  /* ── Brand ── */
-  .brand {
-    text-align: center;
-    padding: 40px 0 56px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 48px;
-  }
-  .brand h1 {
-    font-family: var(--mono);
-    font-size: 20px;
-    font-weight: 500;
-    color: var(--text);
-    letter-spacing: 0.5px;
-  }
-  .brand h1::before {
-    content: '';
-    display: inline-block;
-    width: 8px; height: 8px;
-    background: var(--green);
-    border-radius: 50%;
-    margin-right: 10px;
-    vertical-align: middle;
-  }
-  .brand p {
-    font-family: var(--sans);
-    font-size: 15px;
-    color: var(--text-dim);
-    margin-top: 10px;
+  /* ── Shell: single vertical flow ── */
+  .shell {
+    display: grid;
+    grid-template-rows: auto auto auto auto 1fr;
+    height: 100vh;
+    max-width: 100%;
+    margin: 0 auto;
   }
 
-  /* ── Section headers ── */
-  .sh {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--text-muted);
-    margin-bottom: 20px;
+  /* ── Header ── */
+  .hdr {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
   }
-  .sh::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
+  .hdr-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    flex-shrink: 0;
   }
+  .hdr h1 {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.3px;
+  }
+  .hdr-sep {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin: 0 2px;
+  }
+  .hdr-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .hdr-right { margin-left: auto; }
+  .hdr-right a {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .hdr-right a:hover { color: var(--accent); border-color: var(--accent); }
 
-  /* ── Scenarios ── */
+  /* ── Scenarios: primary interaction ── */
   .scenarios {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1px;
     background: var(--border);
-    margin-bottom: 48px;
-    border: 1px solid var(--border);
   }
-  @media (max-width: 640px) { .scenarios { grid-template-columns: 1fr; } }
-
   .sc-btn {
     background: var(--bg-surface);
     border: none;
-    padding: 28px 24px 24px;
+    padding: 16px 24px 16px 28px;
     cursor: pointer;
     text-align: left;
-    transition: all 0.25s ease;
+    transition: background 0.15s;
     position: relative;
   }
-  .sc-btn:hover { background: var(--bg-raised); }
-  .sc-btn.active {
-    background: var(--bg-raised);
-    border-left: 2px solid var(--accent);
-  }
-
-  .sc-btn .sc-num {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 10px;
-  }
-  .sc-btn.active .sc-num { color: var(--accent); }
-
-  .sc-btn .sc-label {
-    font-family: var(--sans);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 6px;
-    line-height: 1.3;
-  }
-  .sc-btn .sc-note {
-    font-family: var(--sans);
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.5;
-  }
-
-  /* ── Query area ── */
-  .query-block { margin-bottom: 48px; }
-
-  .query-fields {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-  }
-  @media (max-width: 640px) { .query-fields { grid-template-columns: 1fr; } }
-
-  .qf {
-    background: var(--bg-surface);
-    padding: 20px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .qf.full { grid-column: 1 / -1; }
-
-  .qf label {
-    font-family: var(--mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-muted);
-  }
-
-  /* Custom select */
-  .sel {
-    position: relative;
-    display: block;
-    min-width: 220px;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 10px 16px;
-    transition: border-color 0.2s;
-  }
-  .sel:hover { border-color: var(--border-strong); }
-  .sel::after {
+  .sc-btn::after {
     content: '';
     position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 12px; height: 12px;
-    pointer-events: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a7e73' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-  }
-  .sel select {
-    font-family: var(--mono);
-    font-size: 16px;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
     background: transparent;
-    border: none;
-    color: var(--accent);
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding: 0;
-    width: 100%;
-    padding-right: 24px;
+    transition: background 0.2s;
   }
-  .sel select option {
-    background: var(--bg-raised);
-    color: var(--text-body);
+  .sc-btn:hover { background: var(--bg-raised); }
+  .sc-btn.active { background: var(--bg-raised); }
+  .sc-btn.active::after { background: var(--accent); }
+  .sc-btn .sc-role {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 3px;
   }
-  .sel select::-ms-expand { display: none; }
+  .sc-btn.active .sc-role { color: var(--accent); }
+  .sc-btn .sc-title {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .sc-btn .sc-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.4;
+    margin-top: 3px;
+  }
 
-  .qf textarea {
+  /* ── Query context bar ── */
+  .ctx {
+    display: none;
+    padding: 12px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+    gap: 16px;
+    align-items: baseline;
+  }
+  .ctx.show { display: flex; flex-wrap: wrap; }
+  .ctx-role {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  .ctx-sql {
     font-family: var(--mono);
     font-size: 13px;
-    background: transparent;
-    border: none;
-    color: var(--text);
-    outline: none;
-    resize: vertical;
-    line-height: 1.7;
-    min-height: 80px;
-    width: 100%;
+    color: var(--text-dim);
+    white-space: normal;
+    word-break: break-all;
+    flex: 1;
+    min-width: 200px;
+    line-height: 1.5;
   }
-  .qf textarea::placeholder { color: var(--text-muted); }
-
-  .run-area {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 20px;
-  }
-
-  .run-btn {
+  .ctx-latency {
     font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-    padding: 12px 28px;
-    background: transparent;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-  }
-  .run-btn:hover {
-    background: var(--accent-dim);
-    box-shadow: none;
-  }
-  .run-btn:active { transform: scale(0.98); }
-  .run-btn:disabled {
-    border-color: var(--border-strong);
+    font-size: 12px;
     color: var(--text-muted);
-    cursor: not-allowed;
-    box-shadow: none;
+    flex-shrink: 0;
   }
-  .run-btn .spinner {
-    display: inline-block;
-    width: 12px; height: 12px;
-    border: 1.5px solid var(--text-muted);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    vertical-align: middle;
-    margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .latency {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-muted);
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  .latency.show { opacity: 1; }
 
   /* ── Pipeline ── */
-  .pipeline-section { margin-bottom: 48px; }
-
-  .pipeline-track {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    padding: 24px 20px;
-    position: relative;
+  .pipe-track {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-page);
   }
-
-  .pipeline {
+  .pipe {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
     gap: 0;
-    flex-wrap: wrap;
   }
 
   .p-step {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    min-width: 0;
+    gap: 5px;
     flex: 1;
-    max-width: 120px;
+    min-width: 0;
   }
 
   .p-node {
-    width: 38px;
-    height: 38px;
+    width: 38px; height: 38px;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 400;
+    font-size: 15px;
+    font-weight: 500;
     background: var(--bg-elevated);
     color: var(--text-muted);
     border: 1px solid var(--border);
-    transition: all 0.4s ease;
+    transition: all 0.25s ease;
   }
   .p-node.pass {
     background: var(--green-dim);
     color: var(--green);
-    border-color: rgba(74,222,128,0.2);
+    border-color: rgba(63,185,80,0.25);
+  }
+  .p-node.transform {
+    background: var(--amber-dim);
+    color: var(--amber);
+    border-color: rgba(210,153,34,0.25);
   }
   .p-node.fail {
     background: var(--red-dim);
     color: var(--red);
-    border-color: rgba(248,113,113,0.2);
+    border-color: rgba(248,81,73,0.25);
   }
-  .p-node.skipped {
-    opacity: 0.35;
-    text-decoration: line-through;
+  .p-node.skipped { opacity: 0.25; }
+  .p-node.pending { color: var(--border-strong); }
+  .p-node.running {
+    animation: pulse 1s ease-in-out infinite;
+    border-color: var(--accent);
+    color: var(--accent);
   }
-  .p-node.pending {
-    background: var(--bg-elevated);
-    color: var(--text-muted);
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
   }
 
   .p-label {
     font-family: var(--mono);
-    font-size: 8px;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.6px;
     color: var(--text-muted);
     text-align: center;
-    max-width: 100px;
-    line-height: 1.3;
   }
 
-  .p-detail {
+  .p-info {
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 10px;
     color: var(--text-muted);
     text-align: center;
-    max-width: 100px;
     min-height: 12px;
-    transition: color 0.3s;
   }
-  .p-detail.has-info { color: var(--text-dim); }
+  .p-info.has { color: var(--text-dim); }
 
   .p-arrow {
     display: flex;
     align-items: center;
-    margin: 0 4px 0;
+    padding-top: 14px;
     flex-shrink: 0;
   }
   .p-arrow-line {
-    width: 20px;
-    height: 2px;
-    background: var(--text-muted);
-    position: relative;
-    transition: background 0.4s ease;
-  }
-  .p-arrow-line::after {
-    content: '';
-    position: absolute;
-    right: -5px; top: -3px;
-    border-top: 4px solid transparent;
-    border-bottom: 4px solid transparent;
-    border-left: 6px solid var(--text-muted);
-    transition: border-color 0.4s ease;
+    width: 16px; height: 1px;
+    background: var(--border-strong);
   }
 
-  /* ── Results ── */
-  .results-section { margin-bottom: 48px; }
-  .results-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-  }
-  @media (max-width: 640px) { .results-grid { grid-template-columns: 1fr; } }
-
-  .r-panel { background: var(--bg-surface); }
-
-  .r-panel-head {
-    padding: 14px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
-  }
-  .r-panel-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-muted);
-  }
-  .r-panel-status {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-  .r-panel-status.pass { color: var(--green); }
-  .r-panel-status.fail { color: var(--red); }
-
-  .r-panel-body {
-    padding: 16px 20px;
-    max-height: 480px;
+  /* ── Results area (scrollable) ── */
+  .results {
     overflow-y: auto;
-    font-family: var(--mono);
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--text-body);
+    overflow-x: hidden;
+    min-height: 0;
   }
-  .r-panel-body:empty::after {
-    content: 'Awaiting execution';
-    color: var(--text-muted);
-    font-family: var(--sans);
-    font-size: 13px;
-  }
-  .audit-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
-    cursor: pointer;
-    user-select: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.2s;
-  }
-  .audit-trigger:hover { border-bottom-color: var(--border); }
-  .audit-trigger.open { border-bottom-color: var(--border); }
-  .audit-trigger .arrow {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-muted);
-    transition: transform 0.2s;
-  }
-  .audit-trigger.open .arrow { transform: rotate(180deg); }
 
-  .audit-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.35s ease;
+  .results-inner {
+    padding: 20px 28px 0;
   }
-  .audit-content.open { max-height: 600px; overflow-y: auto; }
-  .audit-inner {
-    padding: 16px 20px;
+
+  /* ── Empty state ── */
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .empty-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .empty-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  /* ── Insight ── */
+  .insight {
+    display: none;
+    padding: 16px 24px;
+    margin-bottom: 20px;
+    border-left: 2px solid var(--accent);
+    background: rgba(88,166,255,0.04);
+    border-radius: 0 4px 4px 0;
+  }
+  .insight.show { display: block; }
+  .insight-head {
     font-family: var(--mono);
     font-size: 11px;
-    line-height: 1.8;
-    color: var(--text-dim);
-  }
-  .audit-inner pre {
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  /* SQL table */
-  .tbl { width: 100%; border-collapse: collapse; }
-  .tbl th {
-    text-align: left;
-    padding: 6px 10px 10px;
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    margin-bottom: 6px;
   }
-  .tbl td {
-    padding: 8px 10px;
+  .insight-body {
+    font-size: 14px;
+    color: var(--text-body);
+    line-height: 1.6;
+  }
+  .insight-body strong { color: var(--text); font-weight: 600; }
+  .tag {
+    display: inline-block;
     font-family: var(--mono);
     font-size: 12px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin: 0 1px;
+    vertical-align: baseline;
+    font-weight: 500;
+  }
+  .tag-allow { background: var(--green-dim); color: var(--green); }
+  .tag-block { background: var(--red-dim); color: var(--red); }
+  .tag-dim { background: var(--bg-elevated); color: var(--text-dim); }
+
+  /* ── Data table card ── */
+  .tbl-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-surface);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .tbl-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+  }
+  .tbl-card-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+  }
+  .tbl-card-meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .tbl th {
+    text-align: left;
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-raised);
+  }
+  .tbl td {
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
     color: var(--text-body);
     border-bottom: 1px solid var(--border);
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
   .tbl tr:last-child td { border-bottom: none; }
   .tbl .redacted {
     color: var(--red);
     background: var(--red-dim);
-    padding: 1px 5px;
-    border-radius: 2px;
-    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
   }
   .tbl .num { color: var(--accent); }
 
-  /* JSON syntax highlighting for audit logs */
-  .json-key { color: #79c0ff; }
-  .json-string { color: #a5d6ff; }
-  .json-number { color: #79c0ff; }
-  .json-boolean { color: #ff7b72; }
-  .json-null { color: #ff7b72; }
-  .json-brace { color: #8b949e; }
-
-  /* Error */
-  .err {
+  /* ── Error ── */
+  .err-msg {
     font-family: var(--mono);
     color: var(--red);
     padding: 12px 0;
+    font-size: 14px;
+  }
+  .blocked-msg {
+    font-family: var(--mono);
+    color: var(--text-dim);
+    padding: 12px 0;
+    font-size: 14px;
+    line-height: 1.6;
   }
 
-  /* Footer */
-  .foot {
-    text-align: center;
-    padding: 32px 0 16px;
-    border-top: 1px solid var(--border);
+  /* ── Audit section ── */
+  .audit {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-surface);
+    overflow: hidden;
+    margin-top: 20px;
+    margin-bottom: 20px;
   }
-  .foot span {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-muted);
-  }
-  .foot a {
-    color: var(--text-dim);
-    text-decoration: none;
+  .audit-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    padding: 12px 16px;
+    background: var(--bg-raised);
     border-bottom: 1px solid var(--border);
-    transition: color 0.2s, border-color 0.2s;
   }
-  .foot a:hover { color: var(--accent); border-color: var(--accent); }
+  .audit-toggle:hover .audit-label { color: var(--text-dim); }
+  .audit-arrow {
+    font-size: 8px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+  .audit-toggle.open .audit-arrow { transform: rotate(180deg); }
+  .audit-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    transition: color 0.2s;
+  }
+  .audit-pre-wrap {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .audit-pre-wrap.open { max-height: 300px; overflow-y: auto; }
+  .audit-pre {
+    margin: 0;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .json-key { color: #79c0ff; }
 
   /* Scrollbar */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar { width: 3px; height: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="shell">
 
-<!-- Brand -->
-<div class="brand">
-  <h1>auditguard-mcp</h1>
-  <p>A compliance-aware MCP server with real-time privacy filtering and audit trails</p>
-</div>
-
-<!-- Scenarios -->
-<div class="sh">Scenarios</div>
-<div class="scenarios">
-  <button class="sc-btn" data-sc="analyst" onclick="load('analyst')">
-    <div class="sc-num">01</div>
-    <div class="sc-label">Analyst &mdash; PII Redaction</div>
-    <div class="sc-note">Query customer balances. Names and emails are redacted by the privacy filter before results return.</div>
-  </button>
-  <button class="sc-btn" data-sc="intern" onclick="load('intern')">
-    <div class="sc-num">02</div>
-    <div class="sc-label">Intern &mdash; RBAC Denied</div>
-    <div class="sc-note">Attempt to read the customers table. The role-based access gate blocks the query before it executes.</div>
-  </button>
-  <button class="sc-btn" data-sc="compliance" onclick="load('compliance')">
-    <div class="sc-num">03</div>
-    <div class="sc-label">Officer &mdash; Wire Transfers</div>
-    <div class="sc-note">Full visibility on the wire transfer queue. Compliance officers bypass restrictions and receive unredacted results.</div>
-  </button>
-</div>
-
-<!-- Query -->
-<div class="query-block">
-  <div class="sh">Query</div>
-  <div class="query-fields">
-    <div class="qf">
-      <label>Role</label>
-      <div class="sel">
-        <select id="role">
-          <option value="analyst">analyst</option>
-          <option value="intern">intern</option>
-          <option value="compliance_officer">compliance_officer</option>
-        </select>
-      </div>
-    </div>
-    <div class="qf">
-      <label>SQL</label>
-      <textarea id="sql" rows="6" placeholder="SELECT ..."></textarea>
-    </div>
-    <div class="qf full">
-      <label>Description</label>
-      <textarea id="query" rows="3" placeholder="What this query does"></textarea>
-    </div>
+  <!-- Header -->
+  <div class="hdr">
+    <span class="hdr-dot"></span>
+    <h1>auditguard-mcp</h1>
+    <span class="hdr-sep">&middot;</span>
+    <span class="hdr-sub">compliance-aware MCP with real-time PII filtering</span>
+    <span class="hdr-right"><a href="https://github.com/ree2raz/auditguard-mcp" target="_blank">source</a></span>
   </div>
-  <div class="run-area">
-    <button class="run-btn" id="runBtn" onclick="run()">Execute</button>
-    <span class="latency" id="latency"></span>
-  </div>
-</div>
 
-<!-- Pipeline -->
-<div class="pipeline-section">
-  <div class="sh">Pipeline</div>
-  <div class="pipeline-track">
-    <div class="pipeline" id="pipeline"></div>
+  <!-- Scenarios -->
+  <div class="scenarios">
+    <button class="sc-btn" data-sc="analyst" onclick="load('analyst')">
+      <div class="sc-role">Analyst</div>
+      <div class="sc-title">PII Protection</div>
+      <div class="sc-desc">Names hashed, emails allowed. SSN and account_number columns restricted.</div>
+    </button>
+    <button class="sc-btn" data-sc="intern" onclick="load('intern')">
+      <div class="sc-role">Intern</div>
+      <div class="sc-title">Access Denied</div>
+      <div class="sc-desc">Zero tool permissions. Blocked at the RBAC gate immediately.</div>
+    </button>
+    <button class="sc-btn" data-sc="compliance" onclick="load('compliance')">
+      <div class="sc-role">Officer</div>
+      <div class="sc-title">Restricted Columns</div>
+      <div class="sc-desc">Queries SSN and account_number. Analysts cannot run this.</div>
+    </button>
   </div>
-</div>
 
-<!-- Results -->
-<div class="results-section">
-  <div class="sh">Results</div>
-  <div class="results-grid">
-    <div class="r-panel">
-      <div class="r-panel-head">
-        <span class="r-panel-title">Output</span>
-        <span class="r-panel-status" id="rStatus">idle</span>
-      </div>
-      <div class="r-panel-body" id="rBody"></div>
+  <!-- Context bar (shows after scenario selected) -->
+  <div class="ctx" id="ctx">
+    <span class="ctx-role" id="ctxRole"></span>
+    <span class="ctx-sql" id="ctxSql"></span>
+    <span class="ctx-latency" id="ctxLatency"></span>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="pipe-track">
+    <div class="pipe" id="pipeline"></div>
+  </div>
+
+  <!-- Results: insight + output + audit -->
+  <div class="results" id="results">
+    <div class="empty" id="emptyState">
+      <div class="empty-title">Select a scenario above</div>
+      <div class="empty-sub">Each demonstrates a different compliance outcome</div>
     </div>
-    <div class="r-panel">
-      <div class="audit-trigger" id="auditTrigger" onclick="toggleAudit()">
-        <span class="r-panel-title">Audit</span>
-        <span class="arrow">&#9660;</span>
+    <div class="results-inner" id="resultsInner" style="display:none;">
+      <div class="insight" id="insight">
+        <div class="insight-head">What happened</div>
+        <div class="insight-body" id="insightBody"></div>
       </div>
-      <div class="audit-content" id="auditWrap">
-        <div class="audit-inner" id="auditBody"></div>
+      <div id="rBody"></div>
+      <div class="audit" id="auditSection" style="display:none;">
+        <div class="audit-toggle open" id="auditTrigger" onclick="toggleAudit()">
+          <span class="audit-arrow">&#9660;</span>
+          <span class="audit-label">Audit Log</span>
+        </div>
+        <div class="audit-pre-wrap open" id="auditWrap">
+          <pre class="audit-pre" id="auditBody"></pre>
+        </div>
       </div>
     </div>
   </div>
-</div>
-
-<!-- Footer -->
-<div class="foot">
-  <span><a href="https://github.com/ree2raz/auditguard-mcp" target="_blank">github.com/ree2raz/auditguard-mcp</a> &middot; <a href="https://huggingface.co/openai/privacy-filter" target="_blank">openai/privacy-filter</a></span>
-</div>
 
 </div>
 
 <script>
-const STEPS = [
-  { id: 1, label: 'RBAC Gate' },
-  { id: 2, label: 'Inbound PII' },
-  { id: 3, label: 'Inbound Policy' },
-  { id: 4, label: 'Execution' },
-  { id: 5, label: 'Outbound PII' },
-  { id: 6, label: 'Outbound Policy' },
-  { id: 7, label: 'Audit Log' },
+var STEPS = [
+  { id: 1, label: 'RBAC' },
+  { id: 2, label: 'PII in' },
+  { id: 3, label: 'Policy' },
+  { id: 4, label: 'Exec' },
+  { id: 5, label: 'PII out' },
+  { id: 6, label: 'Policy' },
+  { id: 7, label: 'Audit' },
 ];
 
-const SC = {
-  analyst: { role: 'analyst', query: 'Show me the top 3 customers by account balance', sql: "SELECT c.first_name, c.last_name, c.email, a.balance\nFROM customers c\nJOIN accounts a ON c.id = a.customer_id\nORDER BY a.balance DESC\nLIMIT 3" },
-  intern: { role: 'intern', query: 'Show me all customer data including SSNs', sql: 'SELECT * FROM customers' },
-  compliance: { role: 'compliance_officer', query: 'Show recent wire transfers with descriptions', sql: "SELECT t.id, t.amount, t.description, t.timestamp, t.counterparty\nFROM transactions t\nWHERE t.description LIKE '%wire%'\nORDER BY t.timestamp DESC\nLIMIT 5" }
+var ICONS = {
+  pass: '\u2713',
+  transform: '\u26A1',
+  fail: '\u2717',
+  skipped: '\u2298',
+  pending: '\u25CB',
+};
+
+var SC = {
+  analyst: {
+    role: 'analyst',
+    query: 'Show me the top 3 customers by account balance',
+    sql: "SELECT c.first_name, c.last_name, c.email, a.balance\nFROM customers c\nJOIN accounts a ON c.id = a.customer_id\nORDER BY a.balance DESC\nLIMIT 3"
+  },
+  intern: {
+    role: 'intern',
+    query: 'Show me all customer data including SSNs',
+    sql: 'SELECT * FROM customers'
+  },
+  compliance: {
+    role: 'compliance_officer',
+    query: 'Show top customers with SSN and account numbers',
+    sql: "SELECT c.first_name, c.last_name, c.ssn, a.account_number, a.balance, a.account_type\nFROM customers c\nJOIN accounts a ON c.id = a.customer_id\nORDER BY a.balance DESC\nLIMIT 3"
+  }
 };
 
 function buildPipeline() {
-  const el = document.getElementById('pipeline');
-  let h = '';
-  STEPS.forEach((s, i) => {
-    if (i > 0) h += '<div class="p-arrow"><div class="p-arrow-line" id="a' + i + '"></div></div>';
+  var el = document.getElementById('pipeline');
+  var h = '';
+  STEPS.forEach(function(s, i) {
+    if (i > 0) h += '<div class="p-arrow"><div class="p-arrow-line"></div></div>';
     h += '<div class="p-step">'
-      + '<div class="p-node pending" id="n' + s.id + '">' + s.id + '</div>'
+      + '<div class="p-node pending" id="n' + s.id + '">' + ICONS.pending + '</div>'
       + '<div class="p-label">' + s.label + '</div>'
-      + '<div class="p-detail" id="d' + s.id + '"></div>'
+      + '<div class="p-info" id="d' + s.id + '"></div>'
       + '</div>';
   });
   el.innerHTML = h;
 }
 buildPipeline();
 
+var _lastKey = '';
+
 function load(name) {
-  const s = SC[name];
-  document.getElementById('role').value = s.role;
-  document.getElementById('query').value = s.query;
-  document.getElementById('sql').value = s.sql;
-  document.querySelectorAll('.sc-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-sc="${name}"]`).classList.add('active');
+  var s = SC[name];
+  document.querySelectorAll('.sc-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelector('[data-sc="' + name + '"]').classList.add('active');
+
+  document.getElementById('ctxRole').textContent = s.role;
+  document.getElementById('ctxSql').textContent = s.sql.replace(/\n/g, ' ');
+  document.getElementById('ctxLatency').textContent = '';
+  document.getElementById('ctx').classList.add('show');
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsInner').style.display = 'block';
+
+  var key = s.role + '|' + s.sql;
+  if (key !== _lastKey) { _lastKey = key; run(s.role, s.query, s.sql); }
 }
 
-let sid = null;
+var sid = null;
 
 async function mcpFetch(json) {
-  const h = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' };
+  var h = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' };
   if (sid) h['Mcp-Session-Id'] = sid;
-  const r = await fetch('/mcp', { method: 'POST', headers: h, body: JSON.stringify(json) });
-  if (!r.ok) { const t = await r.text(); throw new Error('MCP ' + r.status + ': ' + t); }
-  const hs = r.headers.get('Mcp-Session-Id') || r.headers.get('mcp-session-id');
+  var r = await fetch('/mcp', { method: 'POST', headers: h, body: JSON.stringify(json) });
+  if (!r.ok) { var t = await r.text(); throw new Error('MCP ' + r.status + ': ' + t); }
+  var hs = r.headers.get('Mcp-Session-Id') || r.headers.get('mcp-session-id');
   if (hs) sid = hs;
-  const t = await r.text();
-  if (t.startsWith('event:')) {
-    for (const l of t.split(/\r?\n/)) { if (l.startsWith('data:')) return JSON.parse(l.substring(5).trim()); }
+  var txt = await r.text();
+  if (txt.startsWith('event:')) {
+    var lines = txt.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('data:')) return JSON.parse(lines[i].substring(5).trim());
+    }
     throw new Error('SSE had no data');
   }
-  try { return JSON.parse(t); }
-  catch { throw new Error('Parse error: ' + t.substring(0, 200)); }
+  try { return JSON.parse(txt); }
+  catch(e) { throw new Error('Parse error: ' + txt.substring(0, 200)); }
 }
 
 async function init() {
   if (sid) return;
-  const d = await mcpFetch({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'web', version: '1.0' } } });
+  var d = await mcpFetch({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'web', version: '1.0' } } });
   if (d.error) throw new Error('Init: ' + d.error.message);
 }
 
 function resetPipeline() {
-  STEPS.forEach(s => {
-    const el = document.getElementById('n' + s.id);
-    el.className = 'p-node pending'; el.textContent = s.id;
-    const d = document.getElementById('d' + s.id); d.textContent = ''; d.classList.remove('has-info');
+  STEPS.forEach(function(s) {
+    var el = document.getElementById('n' + s.id);
+    el.className = 'p-node pending'; el.textContent = ICONS.pending;
+    var d = document.getElementById('d' + s.id);
+    d.textContent = ''; d.classList.remove('has');
   });
-  for (let i = 1; i < 7; i++) { const a = document.getElementById('a' + i); if (a) a.classList.remove('active'); }
 }
 
 function animate(steps) {
-  if (!steps?.length) return;
+  if (!steps || !steps.length) return;
   resetPipeline();
-  steps.forEach((step, i) => {
-    const n = i + 1;
-    setTimeout(() => {
-      const el = document.getElementById('n' + n);
+  steps.forEach(function(step, i) {
+    var n = i + 1;
+    setTimeout(function() {
+      var el = document.getElementById('n' + n);
       el.className = 'p-node ' + step.status;
-      el.textContent = step.status === 'pass' ? '\u2713' : step.status === 'fail' ? '\u2717' : step.status === 'skipped' ? '\u2298' : n;
-      if (i > 0) { const a = document.getElementById('a' + i); if (a && step.status === 'pass') a.classList.add('active'); }
-      const dd = document.getElementById('d' + n);
-      const det = step.detail || {};
-      let txt = '';
+      el.textContent = ICONS[step.status] || n;
+      var dd = document.getElementById('d' + n);
+      var det = step.detail || {};
+      var txt = '';
       if (det.reason) txt = det.reason;
       else if (det.detections !== undefined) txt = det.detections + ' found';
-      else if (det.latency_ms !== undefined) txt = det.latency_ms + 'ms';
-      else if (det.decisions?.length) txt = det.decisions.map(x => x.action).join(', ');
+      else if (det.latency_ms !== undefined) txt = Math.round(det.latency_ms) + 'ms';
+      else if (det.decisions && det.decisions.length) txt = det.decisions.map(function(x) { return x.action; }).join(', ');
       else if (det.status) txt = det.status;
-      if (txt) { dd.textContent = txt; dd.classList.add('has-info'); }
-    }, i * 220);
+      if (txt) { dd.textContent = txt; dd.classList.add('has'); }
+    }, i * 160);
   });
 }
 
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function renderTable(raw) {
   try {
-    const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    var data = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(data) || !data.length) return null;
-    
-    const keys = Object.keys(data[0]);
-    // Filter out internal IDs and low-value columns
-    const usefulKeys = keys.filter(k => !k.match(/^(id|customer_id|account_id|advisor_id)$/i));
-    
-    // Count redacted values
-    let redactCount = 0;
-    data.forEach(row => {
-      Object.values(row).forEach(v => {
-        if (String(v).startsWith('[private_') && String(v).endsWith(']')) redactCount++;
+    var keys = Object.keys(data[0]);
+    var useful = keys.filter(function(k) { return !k.match(/^(id|customer_id|account_id|advisor_id)$/i); });
+    var redactCount = 0;
+    data.forEach(function(row) {
+      Object.values(row).forEach(function(v) {
+        if (String(v).startsWith('[private_') && (String(v).endsWith(']') || String(v).indexOf(']') > 0)) redactCount++;
       });
     });
-    
-    // Summary header
-    let h = '<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);padding:12px 0 16px;border-bottom:1px solid var(--border);">';
-    h += data.length + ' row' + (data.length === 1 ? '' : 's') + ' returned';
-    if (redactCount > 0) h += ' &middot; ' + redactCount + ' redaction' + (redactCount === 1 ? '' : 's') + ' applied';
-    h += '</div>';
-    
-    // Table with useful columns only
+    var meta = data.length + ' row' + (data.length === 1 ? '' : 's');
+    if (redactCount > 0) meta += ' \u00B7 ' + redactCount + ' field' + (redactCount === 1 ? '' : 's') + ' protected';
+    var h = '<div class="tbl-card">';
+    h += '<div class="tbl-card-head"><span class="tbl-card-title">Query Results</span><span class="tbl-card-meta">' + meta + '</span></div>';
     h += '<table class="tbl"><thead><tr>';
-    usefulKeys.forEach(k => { h += '<th>' + esc(k) + '</th>'; });
+    useful.forEach(function(k) { h += '<th>' + esc(k) + '</th>'; });
     h += '</tr></thead><tbody>';
-    data.forEach(row => {
+    data.forEach(function(row) {
       h += '<tr>';
-      usefulKeys.forEach(k => {
-        const v = String(row[k] ?? '');
-        if (v.startsWith('[private_') && v.endsWith(']')) h += '<td><span class="redacted">' + esc(v) + '</span></td>';
+      useful.forEach(function(k) {
+        var v = String(row[k] || '');
+        if (v.startsWith('[private_')) h += '<td><span class="redacted">' + esc(v) + '</span></td>';
         else if (/^-?\d+\.?\d*$/.test(v) && v.length > 3) h += '<td class="num">' + esc(v) + '</td>';
         else h += '<td>' + esc(v) + '</td>';
       });
       h += '</tr>';
     });
-    h += '</tbody></table>';
+    h += '</tbody></table></div>';
     return h;
-  } catch { return null; }
+  } catch(e) { return null; }
 }
 
 function jstr(o) {
   try {
-    const json = typeof o === 'string' ? JSON.parse(o) : o;
-    return '<pre>' + syntaxHighlight(json) + '</pre>';
-  } catch { return esc(String(o)); }
-}
-
-function syntaxHighlight(json) {
-  if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
-  json = esc(json);
-  // Only highlight keys (quoted strings followed by colon), not values
-  // Match: "key": or "key" : with proper escaping
-  return json.replace(/(&quot;[a-zA-Z0-9_]+&quot;)(\s*:)/g, '<span class="json-key">$1</span>$2');
+    var json = typeof o === 'string' ? JSON.parse(o) : o;
+    var s = JSON.stringify(json, null, 2);
+    s = esc(s);
+    s = s.replace(/(&quot;[a-zA-Z0-9_]+&quot;)(\s*:)/g, '<span class="json-key">$1</span>$2');
+    return s;
+  } catch(e) { return esc(String(o)); }
 }
 
 function toggleAudit() {
@@ -816,52 +726,96 @@ function toggleAudit() {
   document.getElementById('auditWrap').classList.toggle('open');
 }
 
-async function run() {
-  const btn = document.getElementById('runBtn');
-  const body = document.getElementById('rBody');
-  const st = document.getElementById('rStatus');
-  const lat = document.getElementById('latency');
+function renderInsight(role, status, audit) {
+  var el = document.getElementById('insight');
+  var body = document.getElementById('insightBody');
+  function block(s) { return '<span class="tag tag-block">' + s + '</span>'; }
+  function allow(s) { return '<span class="tag tag-allow">' + s + '</span>'; }
+  function dim(s) { return '<span class="tag tag-dim">' + s + '</span>'; }
+  var html = '';
+  if (role === 'intern') {
+    html = '<strong>Zero tool permissions.</strong> Denied at the RBAC gate. '
+      + 'No PII scan, no policy check, no execution. '
+      + block('sql_query') + ' ' + block('customer_api') + ' both restricted.';
+  } else if (role === 'analyst') {
+    var n = (audit && audit.outbound_detections) ? audit.outbound_detections.length : 0;
+    html = '<strong>Partial access.</strong> '
+      + allow('sql_query') + ' ' + allow('customer_api') + ' ' + dim('no admin')
+      + ' &middot; ' + block('ssn') + ' ' + block('account_number') + ' columns restricted. '
+      + 'Outbound: <strong>' + n + '</strong> PII detection' + (n === 1 ? '' : 's') + '. Names hashed, emails allowed.';
+  } else if (role === 'compliance_officer') {
+    var n2 = (audit && audit.outbound_detections) ? audit.outbound_detections.length : 0;
+    html = '<strong>Full column access.</strong> '
+      + 'This query reads ' + allow('ssn') + ' ' + allow('account_number')
+      + ' — columns that are ' + block('restricted') + ' for analysts. '
+      + 'Strict policy still filters <strong>' + n2 + '</strong> PII span' + (n2 === 1 ? '' : 's') + ' on output. '
+      + '<span style="color:var(--text-dim)">If an analyst ran this, it would be denied at step 1.</span>';
+  } else {
+    html = 'Role: ' + esc(role);
+  }
+  body.innerHTML = html;
+  el.classList.add('show');
+}
 
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Running...';
-  body.innerHTML = ''; st.textContent = 'running'; st.className = 'r-panel-status';
-  lat.classList.remove('show');
+async function run(role, query, sql) {
+  var body = document.getElementById('rBody');
+  var insightEl = document.getElementById('insight');
+  var auditSection = document.getElementById('auditSection');
+
+  body.innerHTML = '';
+  insightEl.classList.remove('show');
+  auditSection.style.display = 'none';
   resetPipeline();
 
   try {
     await init();
-    const txt = await mcpFetch({
+    var txt = await mcpFetch({
       jsonrpc: '2.0', id: Date.now(), method: 'tools/call',
-      params: { name: 'demo_query', arguments: { role: document.getElementById('role').value, query: document.getElementById('query').value, sql: document.getElementById('sql').value } }
+      params: { name: 'demo_query', arguments: {
+        role: role,
+        query: query,
+        sql: sql
+      }}
     });
-    const data = JSON.parse(txt.result.content[0].text);
+    var data = JSON.parse(txt.result.content[0].text);
 
-    animate(data.pipeline?.steps || []);
+    animate(data.pipeline && data.pipeline.steps ? data.pipeline.steps : []);
 
-    const tbl = renderTable(data.result);
-    body.innerHTML = tbl || '<pre style="white-space:pre-wrap;word-break:break-all;">' + esc(data.result || '') + '</pre>';
+    setTimeout(function() {
+      var tbl = renderTable(data.result);
+      if (data.pipeline && data.pipeline.overall_status === 'blocked') {
+        var reason = '';
+        if (data.audit && data.audit.policy_decisions_inbound && data.audit.policy_decisions_inbound.length) {
+          reason = data.audit.policy_decisions_inbound[0].reason || '';
+        }
+        body.innerHTML = '<div class="blocked-msg">Request blocked: ' + esc(reason || 'access denied') + '</div>';
+      } else if (tbl) {
+        body.innerHTML = tbl;
+      } else {
+        body.innerHTML = '<pre style="white-space:pre-wrap;word-break:break-all;font-family:var(--mono);font-size:13px;color:var(--text-dim);">' + esc(data.result || 'no data') + '</pre>';
+      }
 
-    st.textContent = data.pipeline?.overall_status || '';
-    st.className = 'r-panel-status ' + (data.pipeline?.overall_status || '');
+      auditSection.style.display = 'block';
+      document.getElementById('auditBody').innerHTML = jstr(data.audit);
+      renderInsight(role, data.pipeline ? data.pipeline.overall_status : '', data.audit);
 
-    if (data.latency_ms) { lat.textContent = data.latency_ms + 'ms'; lat.classList.add('show'); }
-    document.getElementById('auditBody').innerHTML = jstr(data.audit);
-    
-    // Auto-open audit log after successful execution
-    if (!document.getElementById('auditTrigger').classList.contains('open')) {
-      document.getElementById('auditTrigger').classList.add('open');
-      document.getElementById('auditWrap').classList.add('open');
-    }
+      if (data.audit && data.audit.latency_ms) {
+        document.getElementById('ctxLatency').textContent = Math.round(data.audit.latency_ms) + 'ms';
+      }
+    }, data.pipeline && data.pipeline.steps ? data.pipeline.steps.length * 160 + 200 : 300);
 
   } catch (e) {
-    body.innerHTML = '<div class="err">' + esc(e.message) + '</div>';
-    st.textContent = 'error'; st.className = 'r-panel-status fail';
-    STEPS.forEach(s => { const el = document.getElementById('n' + s.id); el.className = 'p-node fail'; el.textContent = '\u2717'; });
-  } finally {
-    btn.disabled = false; btn.innerHTML = 'Execute';
+    body.innerHTML = '<div class="err-msg">' + esc(e.message) + '</div>';
+    STEPS.forEach(function(s) {
+      document.getElementById('n' + s.id).className = 'p-node fail';
+      document.getElementById('n' + s.id).textContent = ICONS.fail;
+    });
+    document.getElementById('insightBody').innerHTML = '<strong>Request failed.</strong> ' + esc(e.message);
+    insightEl.classList.add('show');
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => { load('analyst'); init().catch(() => {}); });
+document.addEventListener('DOMContentLoaded', function() { init().catch(function() {}); });
 </script>
 </body>
 </html>

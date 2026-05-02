@@ -178,7 +178,73 @@ Run `make eval` to execute the evaluation harness against a golden set of 15 tes
 - `sql_query`: Read-only SQLite execution with RBAC-enforced column filtering.
 - `customer_api`: A separate FastAPI process simulating a REST backend, demonstrating how the pipeline handles internal service boundaries.
 
-## 9. Extending this
+## 9. Orchestration Backends
+
+auditguard-mcp ships with two orchestration backends. Both run the same 7-stage audit pipeline; they differ in durability and operational requirements.
+
+### Async backend (default)
+
+Standard Python asyncio orchestration. Single-process. Fast.
+
+```python
+config = AuditConfig(backend="async")
+```
+
+**Use when:** Single-instance deployment, no human-in-the-loop, millisecond-latency requirements, no need for cross-process durability.
+
+**Tradeoffs:** If the worker dies mid-pipeline, the request is lost. Audit log entry may be incomplete. Suitable for high-throughput, stateless workloads.
+
+### Temporal backend
+
+Durable workflow orchestration via [Temporal](https://temporal.io/). Each pipeline stage is a Temporal activity with independent retry policies and timeouts. Workflow state survives worker crashes; pipelines resume from the last completed stage.
+
+```python
+config = AuditConfig(
+    backend="temporal",
+    temporal_address="localhost:7233",
+)
+```
+
+**Use when:**
+- Compliance requires audit log durability across failures
+- Pipelines include human-in-the-loop steps (review, approval) that may take minutes to days
+- Activities have heterogeneous failure modes requiring different retry strategies (network flakiness on PII scan vs. permanent permission denial on RBAC)
+- You need full event history for debugging
+
+**Tradeoffs:**
+- Adds ~50-100ms latency overhead per stage (serialization + scheduling)
+- Requires running a Temporal cluster (Docker Compose included for dev)
+- Operational complexity: workers must be deployed and monitored
+
+### Quickstart: Temporal backend locally
+
+```bash
+# 1. Install with Temporal extras
+pip install -e ".[temporal]"
+
+# 2. Start Temporal cluster
+docker compose -f docker/docker-compose.temporal.yml up -d
+
+# 3. Start the worker (in a separate terminal)
+python -m auditguard_mcp.pipeline.temporal_worker
+
+# 4. Run an example
+python examples/run_temporal_backend.py
+
+# 5. View workflow execution at http://localhost:8080
+```
+
+### Architecture decision
+
+The backend split follows a ports-and-adapters pattern. Stage logic lives in `pipeline/stages.py` as pure functions. Each backend (`async_runner.py`, `temporal_runner.py`) is a thin orchestration adapter. This means:
+
+- Stage logic is tested independently of orchestration
+- Adding a third backend (e.g., AWS Step Functions, Airflow) requires implementing only the adapter
+- Behavior is identical across backends; only durability differs
+
+See [docs/architecture.md](docs/architecture.md) for the full design.
+
+## 10. Extending this
 
 To take this from a reference implementation to production:
 1. **Async Review Queue**: Currently, the `REVIEW` action is synchronous (the request completes but is flagged). In production, `REVIEW` should hold the request, return a "pending" status to the LLM, and wait for an out-of-band human approval webhook.

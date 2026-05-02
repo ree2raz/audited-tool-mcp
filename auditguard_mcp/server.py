@@ -42,6 +42,19 @@ from auditguard_mcp.rbac import check_access
 from auditguard_mcp.tools.sql_query import execute_sql
 from auditguard_mcp.tools.customer_api import lookup_customer, search_customers
 
+# New v2 pipeline imports
+from auditguard_mcp.config import get_config
+from auditguard_mcp.pipeline.types import AuditRequest, AuditContext, PolicyMode
+from auditguard_mcp.pipeline.async_runner import run_audit_pipeline_async
+
+# Optional Temporal import — only if backend is configured
+try:
+    from temporalio.client import Client as TemporalClient
+    from auditguard_mcp.pipeline.temporal_runner import AuditPipelineWorkflow
+    TEMPORAL_AVAILABLE = True
+except ImportError:
+    TEMPORAL_AVAILABLE = False
+
 # Configure logging to stderr (stdout is reserved for MCP JSON-RPC)
 logging.basicConfig(
     level=logging.INFO,
@@ -264,6 +277,70 @@ def _emit_audit(
 
 
 # ---------------------------------------------------------------------------
+# v2 Pipeline dispatch
+# ---------------------------------------------------------------------------
+
+
+async def _run_pipeline_v2(
+    request: AuditRequest,
+    context: AuditContext,
+) -> str:
+    """Dispatch to the configured backend (async or Temporal).
+
+    Returns the tool output (possibly redacted) as a JSON string.
+    On RBAC denial or policy block, returns a JSON error dict.
+    """
+    config = get_config()
+
+    if config.backend == "temporal":
+        if not TEMPORAL_AVAILABLE:
+            raise RuntimeError(
+                "Temporal backend selected but temporalio not installed. "
+                "Install with: pip install auditguard-mcp[temporal]"
+            )
+        return await _run_temporal(request, context)
+
+    # Default: async backend
+    result = await run_audit_pipeline_async(request, context)
+
+    # Non-success statuses must return a meaningful error JSON so the
+    # web UI and MCP clients can show "Access denied" instead of empty output.
+    if result.status in ("rbac_denied", "blocked", "error") or result.error:
+        if result.decisions and result.decisions[-1].sanitized_text:
+            return result.decisions[-1].sanitized_text
+        if result.error:
+            return json.dumps({"error": result.error})
+        return json.dumps({"error": result.status})
+
+    return result.decisions[-1].sanitized_text if result.decisions else ""
+
+
+async def _run_temporal(
+    request: AuditRequest,
+    context: AuditContext,
+) -> str:
+    """Start a Temporal workflow and await the result."""
+    config = get_config()
+    client = await TemporalClient.connect(config.temporal_address)
+    handle = await client.start_workflow(
+        AuditPipelineWorkflow.run,
+        args=[request, context],
+        id=f"audit-{request.request_id}",
+        task_queue=config.temporal_task_queue,
+    )
+    result = await handle.result()
+
+    if result.status in ("rbac_denied", "blocked", "error") or result.error:
+        if result.decisions and result.decisions[-1].sanitized_text:
+            return result.decisions[-1].sanitized_text
+        if result.error:
+            return json.dumps({"error": result.error})
+        return json.dumps({"error": result.status})
+
+    return result.decisions[-1].sanitized_text if result.decisions else ""
+
+
+# ---------------------------------------------------------------------------
 # MCP Tools
 # ---------------------------------------------------------------------------
 
@@ -287,22 +364,18 @@ async def sql_query(
         user_id: Your user identifier
         session_id: Session identifier (auto-generated if empty)
     """
-    actor = Actor(
+    request = AuditRequest(
+        request_id=str(uuid.uuid4()),
         role=Role(role),
-        user_id=user_id,
-        session_id=session_id or str(uuid.uuid4()),
-    )
-
-    async def _execute(sanitized_query: str) -> str:
-        return execute_sql(sanitized_query, role=actor.role)
-
-    return await _process_pipeline(
-        actor=actor,
         tool_name="sql_query",
-        query=query,
-        tool_executor=_execute,
-        sql_query=query,  # Original query for RBAC SQL parsing
+        tool_input={"query": query},
+        scan_text=query,
+        requester=user_id,
     )
+    context = AuditContext(
+        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
+    )
+    return await _run_pipeline_v2(request, context)
 
 
 @mcp.tool()
@@ -323,24 +396,18 @@ async def customer_lookup(
         user_id: Your user identifier
         session_id: Session identifier (auto-generated if empty)
     """
-    actor = Actor(
+    request = AuditRequest(
+        request_id=str(uuid.uuid4()),
         role=Role(role),
-        user_id=user_id,
-        session_id=session_id or str(uuid.uuid4()),
+        tool_name="customer_api_lookup",
+        tool_input={"customer_id": customer_id},
+        scan_text=f"Look up customer {customer_id}",
+        requester=user_id,
     )
-
-    query_text = f"Look up customer {customer_id}"
-
-    async def _execute(sanitized_query: str) -> str:
-        return await lookup_customer(customer_id, role=actor.role)
-
-    return await _process_pipeline(
-        actor=actor,
-        tool_name="customer_api",
-        query=query_text,
-        tool_executor=_execute,
-        api_endpoint=f"/customers/{customer_id}",
+    context = AuditContext(
+        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
     )
+    return await _run_pipeline_v2(request, context)
 
 
 @mcp.tool()
@@ -365,25 +432,18 @@ async def customer_search(
         session_id: Session identifier (auto-generated if empty)
         limit: Maximum number of results (1-100)
     """
-    actor = Actor(
+    request = AuditRequest(
+        request_id=str(uuid.uuid4()),
         role=Role(role),
-        user_id=user_id,
-        session_id=session_id or str(uuid.uuid4()),
+        tool_name="customer_api_search",
+        tool_input={"name": name, "email": email, "limit": limit},
+        scan_text=f"Search customers: name={name}, email={email}",
+        requester=user_id,
     )
-
-    query_text = f"Search customers: name={name}, email={email}"
-
-    async def _execute(sanitized_query: str) -> str:
-        return await search_customers(name=name, email=email, role=actor.role, limit=limit)
-
-    return await _process_pipeline(
-        actor=actor,
-        tool_name="customer_api",
-        query=query_text,
-        tool_executor=_execute,
-        api_endpoint="/customers/search/",
-        api_params={"name": name, "email": email} if name or email else None,
+    context = AuditContext(
+        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
     )
+    return await _run_pipeline_v2(request, context)
 
 
 # ---------------------------------------------------------------------------
@@ -394,12 +454,17 @@ async def customer_search(
 def _build_pipeline_view(audit: dict) -> dict:
     """Build per-layer pipeline state from an audit record for the 7-box visualization.
 
-    Each layer returns {status: 'pass'|'fail'|'skipped'|'pending',
+    Each layer returns {status: 'pass'|'transform'|'fail'|'skipped'|'pending',
                         label: str, detail: dict}
+
+    Status meanings:
+      pass      = step ran, nothing to act on (green)
+      transform = step ran AND modified data (amber) — PII detected/redacted/hashed
+      fail      = step blocked the request (red)
+      skipped   = step never ran because an earlier step failed (grey)
     """
     status = audit.get("status", "success")
 
-    # Determine which steps executed based on where the pipeline stopped
     rbac_denied = status == "rbac_denied"
     blocked = status == "blocked"
     executed = status in ("success", "review_queued")
@@ -411,35 +476,39 @@ def _build_pipeline_view(audit: dict) -> dict:
     inbound_decisions = audit.get("policy_decisions_inbound", [])
     outbound_decisions = audit.get("policy_decisions_outbound", [])
 
-    def _step_simple(passed: bool, label: str, detail: dict | None = None) -> dict:
-        return {"status": "pass" if passed else "fail", "label": label, "detail": detail or {}}
+    _ACTIVE_ACTIONS = {"redact", "hash", "vault", "review", "block"}
+
+    def _has_active(decisions: list[dict]) -> bool:
+        return any(d.get("action", "allow") in _ACTIVE_ACTIONS for d in decisions)
 
     layers = []
 
     # Layer 1: RBAC Gate
-    layers.append(_step_simple(
-        not rbac_denied,
-        "RBAC Gate",
-        {
+    layers.append({
+        "status": "fail" if rbac_denied else "pass",
+        "label": "RBAC Gate",
+        "detail": {
             "policy": audit.get("policy_version", ""),
             "reason": "Access denied" if rbac_denied else "Access granted",
         }
-    ))
+    })
 
     # Layer 2: Inbound PII Scan
-    inbound_ran = not rbac_denied  # RBAC denial stops before PII scan
+    inbound_ran = not rbac_denied
+    n_in = len(inbound_detections) if inbound_ran else 0
     layers.append({
-        "status": "pass" if inbound_ran else "skipped",
-        "label": "Inbound PII Scan",
+        "status": "skipped" if not inbound_ran else ("transform" if n_in > 0 else "pass"),
+        "label": "Inbound PII",
         "detail": {
-            "detections": len(inbound_detections) if inbound_ran else 0,
+            "detections": n_in,
             "categories": list(set(d["category"] for d in inbound_detections)) if inbound_ran else [],
         }
     })
 
     # Layer 3: Inbound Policy Engine
+    in_active = _has_active(inbound_decisions)
     layers.append({
-        "status": "pass" if inbound_ran else "skipped",
+        "status": "skipped" if not inbound_ran else ("fail" if blocked else ("transform" if in_active else "pass")),
         "label": "Inbound Policy",
         "detail": {
             "decisions": [{"category": d["category"], "action": d["action"]} for d in inbound_decisions] if inbound_ran else [],
@@ -450,7 +519,7 @@ def _build_pipeline_view(audit: dict) -> dict:
     tool_ran = executed or timed_out
     layers.append({
         "status": "pass" if executed else ("fail" if timed_out or errored else "skipped"),
-        "label": "Tool Execution",
+        "label": "Execution",
         "detail": {
             "latency_ms": round(audit.get("latency_ms", 0), 1),
             "timed_out": timed_out,
@@ -459,18 +528,20 @@ def _build_pipeline_view(audit: dict) -> dict:
 
     # Layer 5: Outbound PII Scan
     outbound_ran = tool_ran
+    n_out = len(outbound_detections) if outbound_ran else 0
     layers.append({
-        "status": "pass" if outbound_ran else "skipped",
-        "label": "Outbound PII Scan",
+        "status": "skipped" if not outbound_ran else ("transform" if n_out > 0 else "pass"),
+        "label": "Outbound PII",
         "detail": {
-            "detections": len(outbound_detections) if outbound_ran else 0,
+            "detections": n_out,
             "categories": list(set(d["category"] for d in outbound_detections)) if outbound_ran else [],
         }
     })
 
     # Layer 6: Outbound Policy Engine
+    out_active = _has_active(outbound_decisions)
     layers.append({
-        "status": "pass" if outbound_ran else "skipped",
+        "status": "skipped" if not outbound_ran else ("transform" if out_active else "pass"),
         "label": "Outbound Policy",
         "detail": {
             "decisions": [{"category": d["category"], "action": d["action"]} for d in outbound_decisions] if outbound_ran else [],
@@ -478,15 +549,15 @@ def _build_pipeline_view(audit: dict) -> dict:
     })
 
     # Layer 7: Audit Log
-    layers.append(_step_simple(
-        True,  # Audit always runs (it catches exceptions too)
-        "Audit Log",
-        {
+    layers.append({
+        "status": "pass",
+        "label": "Audit Log",
+        "detail": {
             "request_id": audit.get("request_id", ""),
             "status": status,
             "review_queued": audit.get("review_queue_id") is not None,
         }
-    ))
+    })
 
     return {"steps": layers, "overall_status": status}
 
@@ -509,12 +580,6 @@ async def demo_query(
         sql: The actual SQL query to execute through the pipeline
         user_id: User identifier
     """
-    actor = Actor(
-        role=Role(role),
-        user_id=user_id,
-        session_id="web-demo",
-    )
-
     # Track audit log position before the call
     import os as _os
     audit_path = _os.environ.get("AUDIT_LOG_PATH", "./audit.jsonl")
@@ -525,16 +590,19 @@ async def demo_query(
 
     sql_to_run = sql if sql else query
 
-    async def _execute(sanitized_query: str) -> str:
-        return execute_sql(sanitized_query, role=actor.role)
-
-    result = await _process_pipeline(
-        actor=actor,
+    request = AuditRequest(
+        request_id=str(uuid.uuid4()),
+        role=Role(role),
         tool_name="sql_query",
-        query=sql_to_run,
-        tool_executor=_execute,
-        sql_query=sql_to_run,
+        tool_input={"query": sql_to_run},
+        scan_text=sql_to_run,
+        requester=user_id,
     )
+    context = AuditContext(
+        policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
+    )
+
+    result = await _run_pipeline_v2(request, context)
 
     # Read the new audit record
     audit_record = None
