@@ -284,11 +284,11 @@ def _emit_audit(
 async def _run_pipeline_v2(
     request: AuditRequest,
     context: AuditContext,
-) -> str:
+) -> tuple[str, dict | None]:
     """Dispatch to the configured backend (async or Temporal).
 
-    Returns the tool output (possibly redacted) as a JSON string.
-    On RBAC denial or policy block, returns a JSON error dict.
+    Returns (tool_output, backend_meta). backend_meta is None for async,
+    or a dict with workflow_id/run_id for Temporal.
     """
     config = get_config()
 
@@ -307,37 +307,50 @@ async def _run_pipeline_v2(
     # web UI and MCP clients can show "Access denied" instead of empty output.
     if result.status in ("rbac_denied", "blocked", "error") or result.error:
         if result.decisions and result.decisions[-1].sanitized_text:
-            return result.decisions[-1].sanitized_text
+            return result.decisions[-1].sanitized_text, {"backend": "async"}
         if result.error:
-            return json.dumps({"error": result.error})
-        return json.dumps({"error": result.status})
+            return json.dumps({"error": result.error}), {"backend": "async"}
+        return json.dumps({"error": result.status}), {"backend": "async"}
 
-    return result.decisions[-1].sanitized_text if result.decisions else ""
+    return result.decisions[-1].sanitized_text if result.decisions else "", {"backend": "async"}
 
 
 async def _run_temporal(
     request: AuditRequest,
     context: AuditContext,
-) -> str:
-    """Start a Temporal workflow and await the result."""
+) -> tuple[str, dict]:
+    """Start a Temporal workflow and await the result.
+
+    Returns (result_string, temporal_meta) where temporal_meta contains
+    workflow_id, run_id, and a link to the Temporal UI.
+    """
     config = get_config()
     client = await TemporalClient.connect(config.temporal_address)
+    workflow_id = f"audit-{request.request_id}"
     handle = await client.start_workflow(
         AuditPipelineWorkflow.run,
         args=[request, context],
-        id=f"audit-{request.request_id}",
+        id=workflow_id,
         task_queue=config.temporal_task_queue,
     )
     result = await handle.result()
 
+    temporal_meta = {
+        "backend": "temporal",
+        "workflow_id": workflow_id,
+        "run_id": handle.result_run_id,
+        "task_queue": config.temporal_task_queue,
+        "temporal_ui_url": f"http://localhost:8080/namespaces/default/workflows/{workflow_id}/{handle.result_run_id}",
+    }
+
     if result.status in ("rbac_denied", "blocked", "error") or result.error:
         if result.decisions and result.decisions[-1].sanitized_text:
-            return result.decisions[-1].sanitized_text
+            return result.decisions[-1].sanitized_text, temporal_meta
         if result.error:
-            return json.dumps({"error": result.error})
-        return json.dumps({"error": result.status})
+            return json.dumps({"error": result.error}), temporal_meta
+        return json.dumps({"error": result.status}), temporal_meta
 
-    return result.decisions[-1].sanitized_text if result.decisions else ""
+    return result.decisions[-1].sanitized_text if result.decisions else "", temporal_meta
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +388,8 @@ async def sql_query(
     context = AuditContext(
         policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
     )
-    return await _run_pipeline_v2(request, context)
+    result, _ = await _run_pipeline_v2(request, context)
+    return result
 
 
 @mcp.tool()
@@ -407,7 +421,8 @@ async def customer_lookup(
     context = AuditContext(
         policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
     )
-    return await _run_pipeline_v2(request, context)
+    result, _ = await _run_pipeline_v2(request, context)
+    return result
 
 
 @mcp.tool()
@@ -443,7 +458,8 @@ async def customer_search(
     context = AuditContext(
         policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
     )
-    return await _run_pipeline_v2(request, context)
+    result, _ = await _run_pipeline_v2(request, context)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -602,7 +618,7 @@ async def demo_query(
         policy_mode=PolicyMode.PERMISSIVE if role != "compliance_officer" else PolicyMode.STRICT,
     )
 
-    result = await _run_pipeline_v2(request, context)
+    result, backend_meta = await _run_pipeline_v2(request, context)
 
     # Read the new audit record
     audit_record = None
@@ -622,6 +638,7 @@ async def demo_query(
         "pipeline": pipeline_view,
         "result": result,
         "audit": audit_record,
+        "backend": backend_meta,
     })
 
 

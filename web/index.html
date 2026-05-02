@@ -180,6 +180,34 @@
     color: var(--text-muted);
     flex-shrink: 0;
   }
+  .ctx-backend {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .ctx-backend.async {
+    color: var(--text-dim);
+    background: var(--bg-elevated);
+  }
+  .ctx-backend.temporal {
+    color: var(--amber);
+    background: var(--amber-dim);
+  }
+  .ctx-backend-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .ctx-backend.async .ctx-backend-dot { background: var(--text-dim); }
+  .ctx-backend.temporal .ctx-backend-dot { background: var(--amber); }
 
   /* ── Pipeline ── */
   .pipe-track {
@@ -453,6 +481,22 @@
     color: var(--text-muted);
     transition: color 0.2s;
   }
+  .audit-spacer { flex: 1; }
+  .audit-link {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--amber);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(210,153,34,0.3);
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+  .audit-link:hover { border-color: var(--amber); }
+  .audit-meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
   .audit-pre-wrap {
     max-height: 0;
     overflow: hidden;
@@ -511,6 +555,10 @@
   <!-- Context bar (shows after scenario selected) -->
   <div class="ctx" id="ctx">
     <span class="ctx-role" id="ctxRole"></span>
+    <span class="ctx-backend async" id="ctxBackend" style="display:none;">
+      <span class="ctx-backend-dot"></span>
+      <span id="ctxBackendLabel"></span>
+    </span>
     <span class="ctx-sql" id="ctxSql"></span>
     <span class="ctx-latency" id="ctxLatency"></span>
   </div>
@@ -536,6 +584,9 @@
         <div class="audit-toggle open" id="auditTrigger" onclick="toggleAudit()">
           <span class="audit-arrow">&#9660;</span>
           <span class="audit-label">Audit Log</span>
+          <span class="audit-spacer"></span>
+          <span class="audit-meta" id="auditMeta"></span>
+          <a class="audit-link" id="auditTemporalLink" style="display:none;" href="#" target="_blank">View in Temporal &#8599;</a>
         </div>
         <div class="audit-pre-wrap open" id="auditWrap">
           <pre class="audit-pre" id="auditBody"></pre>
@@ -765,6 +816,9 @@ async function run(role, query, sql) {
   body.innerHTML = '';
   insightEl.classList.remove('show');
   auditSection.style.display = 'none';
+  document.getElementById('ctxBackend').style.display = 'none';
+  document.getElementById('auditTemporalLink').style.display = 'none';
+  document.getElementById('auditMeta').textContent = '';
   resetPipeline();
 
   try {
@@ -798,6 +852,29 @@ async function run(role, query, sql) {
       auditSection.style.display = 'block';
       document.getElementById('auditBody').innerHTML = jstr(data.audit);
       renderInsight(role, data.pipeline ? data.pipeline.overall_status : '', data.audit);
+
+      // Backend badge
+      var backendEl = document.getElementById('ctxBackend');
+      var backendLabel = document.getElementById('ctxBackendLabel');
+      var backendMeta = data.backend || {};
+      var linkEl = document.getElementById('auditTemporalLink');
+      var metaEl = document.getElementById('auditMeta');
+      if (backendMeta.backend === 'temporal') {
+        backendEl.className = 'ctx-backend temporal';
+        backendLabel.textContent = 'Temporal';
+        backendEl.style.display = 'inline-flex';
+        if (backendMeta.temporal_ui_url) {
+          linkEl.href = backendMeta.temporal_ui_url;
+          linkEl.style.display = 'inline';
+        }
+        metaEl.textContent = backendMeta.workflow_id || '';
+      } else {
+        backendEl.className = 'ctx-backend async';
+        backendLabel.textContent = 'Async';
+        backendEl.style.display = 'inline-flex';
+        linkEl.style.display = 'none';
+        metaEl.textContent = '';
+      }
 
       if (data.audit && data.audit.latency_ms) {
         document.getElementById('ctxLatency').textContent = Math.round(data.audit.latency_ms) + 'ms';
