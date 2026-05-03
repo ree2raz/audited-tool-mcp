@@ -33,6 +33,10 @@ models/
 .DS_Store
 Thumbs.db
 
+# Video files
+*.mkv
+*.mp4
+
 # uv
 uv.lock
 
