@@ -113,6 +113,16 @@ RBAC denies without touching the PII model. The PII model runs before the tool, 
 - **LangGraph ReAct agent** (`examples/agent/`): 3-node agent consuming the MCP server via stdio transport.
 - **Synthetic financial dataset** (`scripts/seed_data.py`): realistic data with deliberate PII edge cases (aliases, compound identifiers, one-hop references).
 
+## Demo videos
+
+**Async backend** — names hashed, SSN/account_number columns restricted, audit log inline:
+
+https://github.com/user-attachments/assets/async_demo.mp4
+
+**Temporal backend** — same pipeline with durable workflow execution, viewable in Temporal UI:
+
+https://github.com/user-attachments/assets/temporal_demo.mp4
+
 ## What this is not
 
 This is a reference implementation, not a production-hardened service. Three gaps are documented explicitly:
