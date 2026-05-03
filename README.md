@@ -16,6 +16,20 @@ Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on C
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-blue)](https://auditguard.rituraj.info)
 
+<details>
+<summary><strong>Watch the demo</strong></summary>
+<br>
+
+<em>Async backend</em> — analyst query with PII hashing, RBAC denial for intern, audit log:
+
+<video src="https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/async_demo.mp4" controls="controls" style="max-width:100%;"></video>
+
+<em>Temporal backend</em> — same pipeline with durable workflow, Temporal UI link:
+
+<video src="https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/temporal_demo.mp4" controls="controls" style="max-width:100%;"></video>
+
+</details>
+
 ## The problem
 
 Most MCP servers treat tool calls as transparent passthroughs. The LLM asks for SQL. The server runs SQL. The LLM gets results. This is fast. It is also unauditable. If a query returned customer SSNs to an intern, there is no record of who saw what, under which policy, with which PII redactions applied. The tool executed. Nothing else happened.
@@ -112,16 +126,6 @@ RBAC denies without touching the PII model. The PII model runs before the tool, 
 - **Interactive web demo** (`web/index.html`): single-page app with real-time pipeline visualization, MCP Streamable HTTP client, and animated 7-step status indicators. Shows backend type (async/temporal) and links to Temporal UI for workflow inspection.
 - **LangGraph ReAct agent** (`examples/agent/`): 3-node agent consuming the MCP server via stdio transport.
 - **Synthetic financial dataset** (`scripts/seed_data.py`): realistic data with deliberate PII edge cases (aliases, compound identifiers, one-hop references).
-
-## Demo videos
-
-**Async backend** — names hashed, SSN/account_number columns restricted, audit log inline:
-
-https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/async_demo.mp4
-
-**Temporal backend** — same pipeline with durable workflow execution, viewable in Temporal UI:
-
-https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/temporal_demo.mp4
 
 ## What this is not
 
