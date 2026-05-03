@@ -22,11 +22,11 @@ Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on C
 
 <em>Async backend</em> — analyst query with PII hashing, RBAC denial for intern, audit log:
 
-https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/async_demo.mp4
+<video src="https://huggingface.co/buckets/ree2raz/demo_videos/resolve/async_demo.mp4" controls="controls" style="max-width:100%;"></video>
 
 <em>Temporal backend</em> — same pipeline with durable workflow, Temporal UI link:
 
-https://github.com/ree2raz/auditguard-mcp/releases/download/v1.0/temporal_demo.mp4
+<video src="https://huggingface.co/buckets/ree2raz/demo_videos/resolve/temporal_demo.mp4" controls="controls" style="max-width:100%;"></video>
 
 </details>
 
