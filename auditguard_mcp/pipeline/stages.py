@@ -108,6 +108,7 @@ def _map_sanitized_to_pipeline_decision(
         sanitized_text=sanitized.mutated_text,
         has_review_flag=sanitized.has_review_flag,
         review_queue_id=sanitized.review_queue_id,
+        categories=list(set(d.category.value for d in sanitized.decisions)),
     )
 
 
@@ -360,8 +361,14 @@ def write_audit_log(
     }
 
     def _to_audit_decision(d: PipelineDecision) -> ExistingPolicyDecision:
+        # Map the first detected category, or fall back to PRIVATE_PERSON
+        cat = d.categories[0] if d.categories else "private_person"
+        try:
+            category = PIICategory(cat)
+        except ValueError:
+            category = PIICategory.PRIVATE_PERSON
         return ExistingPolicyDecision(
-            category=PIICategory.PRIVATE_PERSON,
+            category=category,
             action=_action_map.get(d.action, "allow"),
             reason=d.reason,
         )

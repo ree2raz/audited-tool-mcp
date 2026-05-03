@@ -353,6 +353,7 @@ class AuditPipelineWorkflow:
                         reason=error_msg,
                         triggered_rules=["rbac"],
                         sanitized_text=f'{{"error": "{error_msg}"}}',
+                        categories=[],
                     )
                 )
                 return await workflow.execute_activity(

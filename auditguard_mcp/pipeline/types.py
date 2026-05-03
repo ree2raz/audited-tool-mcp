@@ -88,6 +88,7 @@ class PipelineDecision(BaseModel):
     sanitized_text: str = ""
     has_review_flag: bool = False
     review_queue_id: str | None = None
+    categories: list[str] = Field(default_factory=list)  # detected PII categories
 
 
 class StageResult(BaseModel):

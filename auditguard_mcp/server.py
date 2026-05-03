@@ -88,9 +88,11 @@ async def _process_pipeline(
     api_endpoint: str | None = None,
     api_params: dict | None = None,
 ) -> str:
-    """Execute the full 7-layer compliance pipeline.
+    """Execute the full 7-layer compliance pipeline (LEGACY).
 
-    This is the shared pipeline function called by all MCP tools.
+    NOTE: MCP tools now route through _run_pipeline_v2 (pipeline/async_runner.py).
+    This function is kept for eval_harness.py and test_integration.py which
+    haven't been migrated to v2 yet. New code should use _run_pipeline_v2.
     Returns the final (possibly redacted) tool output.
     """
     request_id = str(uuid.uuid4())

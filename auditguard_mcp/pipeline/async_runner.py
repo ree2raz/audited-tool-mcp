@@ -131,6 +131,7 @@ async def run_audit_pipeline_async(
                 reason=error_msg,
                 triggered_rules=["rbac"],
                 sanitized_text=json.dumps({"error": error_msg}),
+                categories=[],
             )
         )
         return write_audit_log(
