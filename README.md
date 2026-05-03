@@ -16,11 +16,11 @@ Built on OpenAI's Privacy Filter (1.5B params, April 2026), running locally on C
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-blue)](https://auditguard.rituraj.info)
 
-**Async backend** — analyst query with PII hashing, RBAC denial for intern, audit log:
+**Async backend**: analyst query with PII hashing, RBAC denial for intern, audit log.
 
 https://github.com/user-attachments/assets/1b84cf48-0f18-40b5-b724-1e36d213130c
 
-**Temporal backend** — same pipeline with durable workflow, Temporal UI link:
+**Temporal backend**: same pipeline with durable workflow, Temporal UI link.
 
 https://github.com/user-attachments/assets/2d88b1e9-5256-4d0f-bd02-1987efe8fc97
 
@@ -42,9 +42,11 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design rationale
 
 Most production PII detection is regex-based. Regex catches SSN patterns and email addresses. It misses contextual PII. A sentence like "the Henderson trust's primary contact" contains no syntactic PII pattern, but a token classifier identifies "Henderson" as a `private_person` span. Regex does not.
 
-The project integrates [OpenAI's Privacy Filter](https://huggingface.co/openai/privacy-filter), a 1.5B-parameter sparse mixture-of-experts with 128 experts and top-4 routing (50M active parameters per inference). Runs locally on CPU. No data sent to any API. Supports 8 PII categories using constrained Viterbi decoding over a BIOES tagging scheme. We built robust BIOES span decoding (`privacy.py`) to map token predictions back to exact character offsets. This is the unglamorous part most integrations skip and the part that determines whether detections are correct or off-by-several-characters.
+The project integrates [OpenAI's Privacy Filter](https://huggingface.co/openai/privacy-filter), a 1.5B-parameter sparse mixture-of-experts with 128 experts and top-4 routing (50M active parameters per inference). Runs locally on CPU. No data sent to any API. Supports 8 PII categories using constrained Viterbi decoding over a BIOES tagging scheme.
 
-**Honest limitation.** The model occasionally over-redacts public entities and flags numeric financial values (e.g., `496959.67`) as phone numbers. We handle this with a post-detection numeric guard in `policy.py` rather than trying to force the model to behave differently. Detection is a primitive, not a pipeline. The model detects. The policy layer decides.
+Robust BIOES span decoding (`privacy.py`) maps token predictions back to exact character offsets. This is the unglamorous part most integrations skip and the part that determines whether detections are correct or off-by-several-characters.
+
+**Honest limitation.** The model occasionally over-redacts public entities and flags numeric financial values (e.g., `496959.67`) as phone numbers. A post-detection numeric guard in `policy.py` suppresses these false positives rather than trying to force the model to behave differently. Detection is a primitive, not a pipeline. The model detects. The policy layer decides.
 
 ## Security: RBAC, policy engine, audit trails
 
@@ -59,7 +61,9 @@ Two bundled policies demonstrate opposite compliance philosophies:
 
 Same detection pipeline. Same engine. Same audit logger. Only the config differs.
 
-**Audit records** never store raw PII. Original queries and outputs are SHA-256 hashed. Detection text is replaced with `[category]` placeholders. One JSONL record per request, containing the full decision trace. A regulator can verify that the pipeline ran, inspect every decision, and confirm the policy version in effect at the time. They cannot reconstruct the customer's SSN from the audit log. That is the point.
+**Audit records** never store raw PII. Original queries and outputs are SHA-256 hashed. Detection text is replaced with `[category]` placeholders. One JSONL record per request, containing the full decision trace.
+
+A regulator can verify that the pipeline ran, inspect every decision, and confirm the policy version in effect at the time. They cannot reconstruct the customer's SSN from the audit log. That is the point.
 
 ## Infrastructure: Temporal, Docker, async
 
@@ -118,7 +122,6 @@ RBAC denies without touching the PII model. The PII model runs before the tool, 
 ## Full-stack demo
 
 - **Interactive web demo** (`web/index.html`): single-page app with real-time pipeline visualization, MCP Streamable HTTP client, and animated 7-step status indicators. Shows backend type (async/temporal) and links to Temporal UI for workflow inspection.
-- **LangGraph ReAct agent** (`examples/agent/`): 3-node agent consuming the MCP server via stdio transport.
 - **Synthetic financial dataset** (`scripts/seed_data.py`): realistic data with deliberate PII edge cases (aliases, compound identifiers, one-hop references).
 
 ## What this is not
