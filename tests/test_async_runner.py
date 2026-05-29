@@ -65,7 +65,7 @@ def audit_path(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_happy_path_sql_query(audit_path):
+async def test_happy_path_sql_query(audit_path, db_path):
     request = AuditRequest(
         request_id="test-happy-001",
         role=Role.ANALYST,
@@ -170,7 +170,7 @@ async def test_review_queued(audit_path, db_path):
 
 
 @pytest.mark.asyncio
-async def test_audit_record_fields(audit_path):
+async def test_audit_record_fields(audit_path, db_path):
     request = AuditRequest(
         request_id="test-audit-001",
         role=Role.ANALYST,

@@ -114,7 +114,7 @@ class PipelineLogEntry(BaseModel):
     decisions: list[PipelineDecision]
     final_action: PipelineAction
     duration_ms: int
-    backend: Literal["async", "temporal"]
+    backend: Literal["async", "temporal", "langgraph"]
     status: str = "success"
     error: str | None = None
 
