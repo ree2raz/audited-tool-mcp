@@ -147,7 +147,7 @@ cd auditguard-mcp
 make install
 make seed
 MOCK_PII=1 make demo
-# -> http://localhost:7860
+# -> http://localhost:7860  (LangGraph backend by default)
 ```
 
 For LangGraph backend (no extra infra):

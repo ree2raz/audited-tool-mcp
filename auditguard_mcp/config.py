@@ -24,7 +24,7 @@ class AuditConfig(BaseModel):
     """
 
     backend: Literal["async", "temporal", "langgraph"] = Field(
-        default="async",
+        default="langgraph",
         description="Orchestration backend. 'async' for low-latency single-process. "
         "'temporal' for durable execution. 'langgraph' for graph-native orchestration.",
     )
@@ -41,7 +41,7 @@ class AuditConfig(BaseModel):
     def from_env(cls) -> "AuditConfig":
         """Build config from environment variables."""
         return cls(
-            backend=os.getenv("AUDITGUARD_BACKEND", "async"),
+            backend=os.getenv("AUDITGUARD_BACKEND", "langgraph"),
             policy_mode=os.getenv("AUDITGUARD_POLICY_MODE", "permissive"),
             pii_threshold=float(os.getenv("AUDITGUARD_PII_THRESHOLD", "0.7")),
             timeout_seconds=int(os.getenv("AUDITGUARD_TIMEOUT_SECONDS", "30")),

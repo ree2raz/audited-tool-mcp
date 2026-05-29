@@ -266,6 +266,25 @@
   }
   .p-node.skipped { opacity: 0.25; }
   .p-node.pending { color: var(--border-strong); }
+
+  .processing-msg {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .spin {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: spin 0.75s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .p-node.running {
     animation: pulse 1s ease-in-out infinite;
     border-color: var(--accent);
@@ -818,7 +837,7 @@ async function run(role, query, sql) {
   var insightEl = document.getElementById('insight');
   var auditSection = document.getElementById('auditSection');
 
-  body.innerHTML = '';
+  body.innerHTML = '<div class="processing-msg"><div class="spin"></div>Processing&hellip;</div>';
   insightEl.classList.remove('show');
   auditSection.style.display = 'none';
   document.getElementById('ctxBackend').style.display = 'none';
