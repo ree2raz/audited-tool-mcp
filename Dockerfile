@@ -30,6 +30,11 @@ RUN uv pip install --system --no-cache \
     "transformers>=4.40.0" \
     "mcp[cli]>=1.0.0"
 
+# === LAYER 3: LangGraph orchestration backend ===
+RUN uv pip install --system --no-cache \
+    "langgraph>=0.2.0" \
+    "langchain-core>=0.3.0"
+
 # Copy application code (changes won't bust dep layers)
 COPY auditguard_mcp/ ./auditguard_mcp/
 COPY scripts/ ./scripts/

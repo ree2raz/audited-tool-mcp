@@ -323,7 +323,12 @@ async def _run_pipeline_v2(
         return await _run_temporal(request, context)
 
     if config.backend == "langgraph":
-        from auditguard_mcp.pipeline.langgraph_runner import run_audit_pipeline_langgraph
+        try:
+            from auditguard_mcp.pipeline.langgraph_runner import run_audit_pipeline_langgraph
+        except ImportError:
+            logger.warning("langgraph not installed; falling back to async backend")
+            result = await run_audit_pipeline_async(request, context)
+            return _extract_output(result, "async")
         result = await run_audit_pipeline_langgraph(request, context)
         return _extract_output(result, "langgraph")
 
