@@ -32,7 +32,7 @@ The fix is not a bolt-on. The fix is a pipeline that gates every tool call throu
 
 ## Architecture: ports and adapters
 
-The pipeline uses a ports-and-adapters (hexagonal) pattern. Stage logic lives in `pipeline/stages.py` as pure functions. No IO, no framework dependencies, easy to test. Each orchestration backend (`async_runner.py`, `temporal_runner.py`) is a thin adapter that calls those functions in sequence. Adding a third backend (AWS Step Functions, Celery) is roughly 100 lines of adapter code, not a rewrite.
+The pipeline uses a ports-and-adapters (hexagonal) pattern. Stage logic lives in `pipeline/stages.py` as pure functions. No IO, no framework dependencies, easy to test. Each orchestration backend (`async_runner.py`, `langgraph_runner.py`, `temporal_runner.py`) is a thin adapter that calls those functions in sequence. Adding another backend (AWS Step Functions, Celery) is roughly 100 lines of adapter code, not a rewrite.
 
 The design is **fail-closed**. Unparseable SQL always triggers `RBACDenied`. Missing policy categories default to `ALLOW` explicitly. Audit records never contain raw PII.
 
@@ -65,17 +65,20 @@ Same detection pipeline. Same engine. Same audit logger. Only the config differs
 
 A regulator can verify that the pipeline ran, inspect every decision, and confirm the policy version in effect at the time. They cannot reconstruct the customer's SSN from the audit log. That is the point.
 
-## Infrastructure: Temporal, Docker, async
+## Infrastructure: Temporal, LangGraph, async
 
-Two orchestration backends for the same 7-stage pipeline:
+Three orchestration backends for the same 7-stage pipeline:
 
-| | Async (default) | Temporal |
-|---|---|---|
-| Latency overhead | None | ~50-100ms per stage |
-| Durability | Lost on crash | Resumes from last completed stage |
-| Human-in-the-loop | No | 24-hour signal timeout |
-| Retry per stage | No | Independent policies (RBAC: 3 attempts, Audit: 20) |
-| Operational cost | Zero | Temporal cluster + worker process |
+| | Async (default) | LangGraph | Temporal |
+|---|---|---|---|
+| Latency overhead | None | ~1-5ms | ~50-100ms per stage |
+| Durability | Lost on crash | Lost on crash | Resumes from last completed stage |
+| Human-in-the-loop | No | No (short-circuits) | 24-hour signal timeout |
+| Retry per stage | No | No | Independent policies (RBAC: 3 attempts, Audit: 20) |
+| Operational cost | Zero | Zero | Temporal cluster + worker process |
+| Routing model | Imperative if-else | Explicit graph edges | Deterministic workflow |
+
+The LangGraph backend (`langgraph_runner.py`) models the pipeline as a `StateGraph` — each stage is a node, branching logic lives in conditional edges, and partial state is preserved via streaming snapshots so error-path audit records are as complete as success-path ones. See [`LANGGRAPH.md`](LANGGRAPH.md) for the full graph topology, state schema, and design rationale.
 
 The Temporal workflow (`temporal_runner.py`) handles `ActivityError` unwrapping for RBAC denial, heartbeating for long model inference, and human review signals. Temporal tests use an in-memory server. No Docker needed for CI.
 
@@ -115,13 +118,13 @@ RBAC denies without touching the PII model. The PII model runs before the tool, 
 
 ## Quality: tests, eval, benchmarks
 
-- **108 tests** across unit, integration, and pipeline stages (`tests/`)
+- **116 tests** across unit, integration, and pipeline stages (`tests/`)
 - **Golden-set eval harness** with 15 test cases measuring RBAC accuracy, PII detection accuracy, and audit completeness (`eval/`)
 - **Latency benchmarks** reporting p50/p90/p95/p99 for the 1.5B model on CPU (`benchmarks/`)
 
 ## Full-stack demo
 
-- **Interactive web demo** (`web/index.html`): single-page app with real-time pipeline visualization, MCP Streamable HTTP client, and animated 7-step status indicators. Shows backend type (async/temporal) and links to Temporal UI for workflow inspection.
+- **Interactive web demo** (`web/index.html`): single-page app with real-time pipeline visualization, MCP Streamable HTTP client, and animated 7-step status indicators. Shows backend type (async/langgraph/temporal) with a colour-coded chip; links to Temporal UI for workflow inspection.
 - **Synthetic financial dataset** (`scripts/seed_data.py`): realistic data with deliberate PII edge cases (aliases, compound identifiers, one-hop references).
 
 ## What this is not
@@ -147,6 +150,13 @@ MOCK_PII=1 make demo
 # -> http://localhost:7860
 ```
 
+For LangGraph backend (no extra infra):
+
+```bash
+AUDITGUARD_BACKEND=langgraph MOCK_PII=1 uv run python web_app.py
+# -> http://localhost:7860  (chip shows "LangGraph" in blue)
+```
+
 For Temporal backend:
 
 ```bash
@@ -164,7 +174,7 @@ AUDITGUARD_BACKEND=temporal uv run uvicorn web_app:app --port 7860             #
 | MCP Server | FastMCP (stdio + Streamable HTTP) |
 | PII Detection | OpenAI Privacy Filter 1.5B (local CPU) |
 | SQL Parsing | sqlglot |
-| Orchestration | asyncio / Temporal |
+| Orchestration | asyncio / LangGraph / Temporal |
 | Web Framework | FastAPI + Uvicorn |
 | Database | SQLite (synthetic) |
 | Container | Docker (multi-layer, CPU-only ML deps) |

@@ -286,12 +286,28 @@ def _emit_audit(
 # v2 Pipeline dispatch
 # ---------------------------------------------------------------------------
 
+_NON_SUCCESS_STATUSES = {"rbac_denied", "blocked", "error"}
+
+
+def _extract_output(result: "PipelineLogEntry", backend: str) -> tuple[str, dict]:
+    """Convert a PipelineLogEntry to the (tool_output, backend_meta) tuple.
+
+    Non-success statuses always return error JSON -- never sanitized_text.
+    sanitized_text on a BLOCK decision holds the *original* blocked content
+    (set by stages.apply_inbound_policy / apply_outbound_policy on PolicyViolation),
+    so returning it would leak the blocked SSN / PII back to the MCP client.
+    """
+    meta = {"backend": backend}
+    if result.status in _NON_SUCCESS_STATUSES or result.error:
+        return json.dumps({"error": result.error or result.status}), meta
+    return result.decisions[-1].sanitized_text if result.decisions else "", meta
+
 
 async def _run_pipeline_v2(
     request: AuditRequest,
     context: AuditContext,
 ) -> tuple[str, dict | None]:
-    """Dispatch to the configured backend (async or Temporal).
+    """Dispatch to the configured backend (async, temporal, or langgraph).
 
     Returns (tool_output, backend_meta). backend_meta is None for async,
     or a dict with workflow_id/run_id for Temporal.
@@ -306,19 +322,14 @@ async def _run_pipeline_v2(
             )
         return await _run_temporal(request, context)
 
+    if config.backend == "langgraph":
+        from auditguard_mcp.pipeline.langgraph_runner import run_audit_pipeline_langgraph
+        result = await run_audit_pipeline_langgraph(request, context)
+        return _extract_output(result, "langgraph")
+
     # Default: async backend
     result = await run_audit_pipeline_async(request, context)
-
-    # Non-success statuses must return a meaningful error JSON so the
-    # web UI and MCP clients can show "Access denied" instead of empty output.
-    if result.status in ("rbac_denied", "blocked", "error") or result.error:
-        if result.decisions and result.decisions[-1].sanitized_text:
-            return result.decisions[-1].sanitized_text, {"backend": "async"}
-        if result.error:
-            return json.dumps({"error": result.error}), {"backend": "async"}
-        return json.dumps({"error": result.status}), {"backend": "async"}
-
-    return result.decisions[-1].sanitized_text if result.decisions else "", {"backend": "async"}
+    return _extract_output(result, "async")
 
 
 async def _run_temporal(

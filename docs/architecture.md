@@ -1,18 +1,18 @@
 # Architecture — auditguard-mcp v2
 
-This document explains the architectural decisions behind the v2 pipeline redesign, specifically the introduction of Temporal as an optional orchestration backend.
+This document explains the architectural decisions behind the v2 pipeline redesign: the ports-and-adapters stage model and the three orchestration backends (async, LangGraph, Temporal).
 
 ## Core Principle: Separate Stage Logic from Orchestration
 
 The most important architectural decision in v2 is that the 7 pipeline stages are **pure functions** that don't know how they're being orchestrated. This is the ports-and-adapters (hexagonal) pattern:
 
 - **Ports**: The stage functions in `pipeline/stages.py` — pure, side-effect-free (except audit log write), deterministic.
-- **Adapters**: `async_runner.py` and `temporal_runner.py` — thin wrappers that call the stages in the right order, with the right concurrency model, retry policy, and durability guarantees.
+- **Adapters**: `async_runner.py`, `langgraph_runner.py`, and `temporal_runner.py` — thin wrappers that call the stages in the right order, with the right concurrency model, retry policy, and durability guarantees.
 
 This means:
-1. **Stage logic is tested once**, not twice. `test_pipeline_stages.py` covers all the business logic.
-2. **Behavior is identical across backends**. Both async and Temporal run the same `check_rbac()`, `scan_inbound_pii()`, etc.
-3. **Adding a third backend** (e.g., AWS Step Functions, Celery, Airflow) requires writing only the adapter — ~100 lines, not 400.
+1. **Stage logic is tested once**, not three times. `test_pipeline_stages.py` covers all the business logic.
+2. **Behavior is identical across backends**. All three backends run the same `check_rbac()`, `scan_inbound_pii()`, etc.
+3. **Adding another backend** (e.g., AWS Step Functions, Celery) requires writing only the adapter — ~100 lines, not 400.
 
 ## Type Boundaries
 
@@ -55,6 +55,36 @@ async def run_audit_pipeline_async(request, context):
 ```
 
 **Durability gap**: If the Python process crashes after Stage 4 but before Stage 7, the audit log entry is lost. The request is also lost. This is acceptable for high-throughput, stateless workloads where the client can retry.
+
+## LangGraph Backend
+
+The LangGraph backend expresses the same 7-stage pipeline as an explicit `StateGraph`. Each stage is a node; short-circuit paths are conditional edges. The key differences from the async backend:
+
+**State threading.** A `PipelineState` TypedDict is passed through every node. Nodes return partial dicts; LangGraph merges them by key overwrite. This makes the accumulated decisions and detections visible to every downstream node and — critically — to the error handler.
+
+**Routing via conditional edges.** Where the async backend uses `if inbound_decision.action in (DENY, BLOCK)`, the LangGraph backend encodes this in a routing function attached to a conditional edge:
+
+```python
+def route_after_policy_inbound(state):
+    if state["route"] in ("short_circuit", "human_review"):
+        return "audit_log"
+    return "execute"
+```
+
+This makes branching topology inspectable at compile time (`_PIPELINE_GRAPH.get_graph()`) and verifiable before any request is processed.
+
+**Partial-state error recovery.** The entrypoint uses `astream(stream_mode="values")` rather than `ainvoke`. `last_state` is updated after every node snapshot. If `node_execute` raises mid-pipeline, the error handler writes an audit log using `last_state` — which already contains the inbound PII scan and policy decision — rather than the empty initial state. The async backend cannot do this without significant restructuring.
+
+**Graph topology:**
+```
+START → rbac → scan_inbound → policy_inbound → execute → scan_outbound → policy_outbound → audit_log → END
+          ↘ audit_log ↗              ↘ audit_log ↗
+         (rbac_denied)         (short_circuit / human_review)
+```
+
+All paths converge on `audit_log`, guaranteeing a structured record regardless of exit point.
+
+See [`LANGGRAPH.md`](../LANGGRAPH.md) for the full state schema, node-by-node mapping, and branching rules table.
 
 ## Temporal Backend
 
@@ -113,7 +143,7 @@ Both backends use the same registry. `execute_bounded()` looks up the tool by na
 
 ```python
 class AuditConfig(BaseModel):
-    backend: Literal["async", "temporal"] = "async"
+    backend: Literal["async", "temporal", "langgraph"] = "async"
     policy_mode: Literal["permissive", "strict"] = "permissive"
     pii_threshold: float = 0.7
     timeout_seconds: int = 30
@@ -129,6 +159,7 @@ Read from environment variables (`AUDITGUARD_BACKEND`, `TEMPORAL_ADDRESS`, etc.)
 |-----------|---------------|
 | `test_pipeline_stages.py` | Each stage in isolation (RBAC, PII scan, policy, audit log) |
 | `test_async_runner.py` | End-to-end async pipeline (happy path, RBAC denial, policy block, audit completeness) |
+| `test_langgraph_runner.py` | LangGraph graph semantics (happy path, RBAC denial, inbound block, outbound transform, human-review short-circuit, partial-state error recovery, server dispatch safety) |
 | `test_temporal_runner.py` | Temporal workflow semantics (happy path, RBAC failure, signal handling) using `WorkflowEnvironment` |
 
 The Temporal tests use `WorkflowEnvironment.start_time_skipping()` — a test-only in-memory Temporal server that runs workflows instantly. No Docker required. This is the killer feature for testing durable workflows.
@@ -147,12 +178,12 @@ To fully migrate:
 2. Deprecate `_process_pipeline()`.
 3. Update `demo_query` to use the new pipeline exclusively.
 
-## Future Backends
+## Adding Further Backends
 
-Adding a third backend requires:
-1. Create `pipeline/new_backend_runner.py`.
-2. Implement the 7-stage orchestration in the new backend's paradigm.
-3. Import the runner in `server.py` and add a branch in `_run_pipeline_v2()`.
-4. Write backend-specific tests.
+The LangGraph backend proves the pattern. Adding another backend (e.g., AWS Step Functions, Celery, Prefect) requires:
+1. Create `pipeline/new_backend_runner.py` — implement the 7-stage sequence in the new paradigm.
+2. Widen `backend: Literal[...]` in `config.py` and `types.py`.
+3. Add a dispatch branch in `server.py:_run_pipeline_v2()` using `_extract_output()` for the response conversion.
+4. Write backend-specific tests mirroring `test_langgraph_runner.py`.
 
-Estimated effort: ~100 lines of adapter code + ~50 lines of tests.
+Estimated effort: ~100 lines of adapter code + ~60 lines of tests. Stage logic in `stages.py` is never touched.

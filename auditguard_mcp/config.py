@@ -23,10 +23,10 @@ class AuditConfig(BaseModel):
         temporal_task_queue: Temporal task queue name (only used if backend=='temporal').
     """
 
-    backend: Literal["async", "temporal"] = Field(
+    backend: Literal["async", "temporal", "langgraph"] = Field(
         default="async",
         description="Orchestration backend. 'async' for low-latency single-process. "
-        "'temporal' for durable execution.",
+        "'temporal' for durable execution. 'langgraph' for graph-native orchestration.",
     )
     policy_mode: Literal["permissive", "strict"] = "permissive"
     pii_threshold: float = 0.7

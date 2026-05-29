@@ -201,6 +201,10 @@
     color: var(--amber);
     background: var(--amber-dim);
   }
+  .ctx-backend.langgraph {
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
   .ctx-backend-dot {
     width: 5px; height: 5px;
     border-radius: 50%;
@@ -208,6 +212,7 @@
   }
   .ctx-backend.async .ctx-backend-dot { background: var(--text-dim); }
   .ctx-backend.temporal .ctx-backend-dot { background: var(--amber); }
+  .ctx-backend.langgraph .ctx-backend-dot { background: var(--accent); }
 
   /* ── Pipeline ── */
   .pipe-track {
@@ -868,6 +873,12 @@ async function run(role, query, sql) {
           linkEl.style.display = 'inline';
         }
         metaEl.textContent = backendMeta.workflow_id || '';
+      } else if (backendMeta.backend === 'langgraph') {
+        backendEl.className = 'ctx-backend langgraph';
+        backendLabel.textContent = 'LangGraph';
+        backendEl.style.display = 'inline-flex';
+        linkEl.style.display = 'none';
+        metaEl.textContent = '';
       } else {
         backendEl.className = 'ctx-backend async';
         backendLabel.textContent = 'Async';
